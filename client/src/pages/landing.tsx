@@ -1,12 +1,18 @@
+import { useState } from "react";
 import Logo from "@/components/Logo";
 import Footer from "@/components/Footer";
+import BillingIntervalToggle from "@/components/BillingIntervalToggle";
+import {
+  displayPlanPrice,
+  multiCreatorQuoteMailto,
+  type BillingInterval,
+} from "@shared/billing-interval";
 
 /** Mirrors billing.tsx plan names/prices — do not invent. */
 const OPERATOR_PLANS = [
   {
+    key: "free" as const,
     name: "Starter Split",
-    price: "$0",
-    billing: "Free · no card needed",
     features: [
       "1 collaboration project",
       "Up to 2 contributors",
@@ -18,9 +24,8 @@ const OPERATOR_PLANS = [
     featured: false,
   },
   {
+    key: "session" as const,
     name: "Pay-Per-Session",
-    price: "$25 CAD",
-    billing: "Per completed session",
     features: [
       "Up to 5 contributors",
       "Split percentage configuration",
@@ -33,9 +38,8 @@ const OPERATOR_PLANS = [
     featured: true,
   },
   {
+    key: "creator_pro" as const,
     name: "Creator Pro",
-    price: "$15 CAD/mo",
-    billing: "Unlimited sessions",
     features: [
       "Unlimited sessions (no per-session fee)",
       "Project history storage",
@@ -45,9 +49,8 @@ const OPERATOR_PLANS = [
     featured: false,
   },
   {
+    key: "studio_pro" as const,
     name: "Studio Pro",
-    price: "$49 CAD/mo",
-    billing: "Unlimited projects & team",
     features: [
       "Unlimited projects and contributors",
       "Team management dashboard",
@@ -157,6 +160,9 @@ function ProductMock() {
 }
 
 export default function Landing() {
+  const [interval, setInterval] = useState<BillingInterval>("month");
+  const [quoteInterval, setQuoteInterval] = useState<BillingInterval>("month");
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <nav className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md supports-[backdrop-filter]:bg-card/70">
@@ -526,10 +532,22 @@ export default function Landing() {
             Simple operator billing
           </h2>
           <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
-            Operators pay for the workspace. Contributors do not need a paid account.
+            Operators pay for the workspace in CAD. Contributors do not need a paid account. Save 2 months with annual billing on Creator Pro and Studio Pro.
           </p>
+          <div className="mt-8">
+            <BillingIntervalToggle value={interval} onChange={setInterval} />
+          </div>
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {OPERATOR_PLANS.map((plan) => (
+            {OPERATOR_PLANS.map((plan) => {
+              const shown = displayPlanPrice(
+                plan.key,
+                plan.key === "free" || plan.key === "session" ? "month" : interval,
+              );
+              const href =
+                plan.key === "creator_pro" || plan.key === "studio_pro"
+                  ? `/subscribe?plan=${plan.key}&interval=${interval}`
+                  : "/login";
+              return (
               <div
                 key={plan.name}
                 className={`flex flex-col rounded-xl border bg-card p-6 ${
@@ -543,9 +561,19 @@ export default function Landing() {
                     Popular
                   </p>
                 )}
-                <h3 className="text-base font-semibold text-foreground">{plan.name}</h3>
-                <p className="mt-3 text-3xl font-bold text-foreground">{plan.price}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{plan.billing}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base font-semibold text-foreground">{plan.name}</h3>
+                  {shown.saveBadge && (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                      {shown.saveBadge}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-3 text-3xl font-bold text-foreground">{shown.price}</p>
+                {shown.monthlyEquivalent && (
+                  <p className="mt-1 text-xs text-muted-foreground">{shown.monthlyEquivalent} equivalent</p>
+                )}
+                <p className="mt-1 text-xs text-muted-foreground">{shown.billing}</p>
                 <ul className="mt-5 flex-1 space-y-2">
                   {plan.features.map((f) => (
                     <li key={f} className="text-sm text-muted-foreground">
@@ -554,7 +582,7 @@ export default function Landing() {
                   ))}
                 </ul>
                 <a
-                  href="/login"
+                  href={href}
                   className={`mt-6 block rounded-lg py-2.5 text-center text-sm font-semibold transition-colors ${
                     plan.featured
                       ? "bg-accent text-accent-foreground hover:bg-accent/90"
@@ -564,19 +592,34 @@ export default function Landing() {
                   Get Started
                 </a>
               </div>
-            ))}
+              );
+            })}
           </div>
-          <p className="mt-8 text-sm text-muted-foreground">
-            Multi-Creator ($50–$75 CAD, quote-based) and custom operator plans are
-            available.{" "}
+          <div className="mt-8 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center">
+            <p>
+              Multi-Creator ($50–$75 CAD, quote-based) and custom operator plans are
+              available.
+            </p>
+            <label className="flex items-center gap-2">
+              <span>Quote term</span>
+              <select
+                aria-label="Multi-Creator quote billing interval"
+                className="rounded-md border border-border bg-background px-2 py-1 text-foreground"
+                value={quoteInterval}
+                onChange={(e) => setQuoteInterval(e.target.value as BillingInterval)}
+                data-testid="landing-quote-interval"
+              >
+                <option value="month">Monthly</option>
+                <option value="year">Annual</option>
+              </select>
+            </label>
             <a
-              href="mailto:enterprise@splitsheet.ca?subject=Multi-Creator%20plan%20quote"
+              href={multiCreatorQuoteMailto(quoteInterval)}
               className="font-medium text-accent underline-offset-2 hover:underline"
             >
               Request a quote
             </a>
-            .
-          </p>
+          </div>
         </div>
       </section>
 

@@ -39,7 +39,13 @@ export async function runCoreSchemaMigrations(): Promise<void> {
       ADD COLUMN IF NOT EXISTS terms_accepted_at timestamp,
       ADD COLUMN IF NOT EXISTS terms_version varchar,
       ADD COLUMN IF NOT EXISTS auth0_sub varchar,
-      ADD COLUMN IF NOT EXISTS active_organization_id varchar;
+      ADD COLUMN IF NOT EXISTS active_organization_id varchar,
+      ADD COLUMN IF NOT EXISTS subscription_interval varchar DEFAULT 'month';
+  `);
+  await db.execute(sql`
+    UPDATE users
+    SET subscription_interval = 'month'
+    WHERE subscription_interval IS NULL OR subscription_interval = '';
   `);
   await db.execute(sql`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_auth0_sub

@@ -53,6 +53,12 @@ import { registerCustomFieldRoutes } from "./custom-field-routes";
 import { registerCopilotHistoryRoutes } from "./copilot-history";
 import { registerV1ApiRoutes } from "./v1-api-routes";
 import { registerReferralRoutes } from "./referral-routes";
+import {
+  assertPlanAllowsInterval,
+  parseBillingInterval,
+  PLAN_PRICE_CENTS,
+  resolveStripePriceId,
+} from "@shared/billing-interval";
 import { syncAgreementToRightsLedger } from "./agreement-ledger";
 import { isDraftableStatus, validateTemplateFieldValues } from "@shared/agreement-catalog";
 import { isAdmin } from "./adminAuth";
@@ -783,13 +789,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
+        const parsedInterval = parseBillingInterval(req.body?.interval);
+        if (!parsedInterval.ok) {
+          return res.status(400).json({ error: { message: parsedInterval.message } });
+        }
+        const interval = parsedInterval.interval;
+        const intervalAllowed = assertPlanAllowsInterval(plan, interval);
+        if (!intervalAllowed.ok) {
+          return res.status(400).json({ error: { message: intervalAllowed.message } });
+        }
+
         // Multi-Creator is quote-based — do not create a Stripe subscription here
         if (plan === "pro") {
           return res.json({
             quoteRequired: true,
             plan,
+            interval,
             message:
-              "Multi-Creator is quote-based. Contact enterprise@splitsheet.ca for pricing.",
+              "Multi-Creator is quote-based. Contact enterprise@splitsheet.ca for monthly or annual pricing.",
           });
         }
 
@@ -798,30 +815,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           { amount: number; name: string; envKey: string }
         > = {
           session: {
-            amount: 2500,
+            amount: PLAN_PRICE_CENTS.session.month,
             name: "Pay-Per-Session",
             envKey: "STRIPE_SESSION_PRICE_ID",
           },
           creator_pro: {
-            amount: 1500,
+            amount:
+              interval === "year"
+                ? PLAN_PRICE_CENTS.creator_pro.year
+                : PLAN_PRICE_CENTS.creator_pro.month,
             name: "Creator Pro",
-            envKey: "STRIPE_CREATOR_PRO_PRICE_ID",
+            envKey:
+              interval === "year"
+                ? "STRIPE_PRICE_CREATOR_PRO_ANNUAL"
+                : "STRIPE_CREATOR_PRO_PRICE_ID",
           },
           studio_pro: {
-            amount: 4900,
+            amount:
+              interval === "year"
+                ? PLAN_PRICE_CENTS.studio_pro.year
+                : PLAN_PRICE_CENTS.studio_pro.month,
             name: "Studio Pro",
-            envKey: "STRIPE_STUDIO_PRO_PRICE_ID",
+            envKey:
+              interval === "year"
+                ? "STRIPE_PRICE_STUDIO_PRO_ANNUAL"
+                : "STRIPE_STUDIO_PRO_PRICE_ID",
           },
-        };
-        // Legacy env fallbacks for Creator/Studio
-        const priceEnvMap: Record<string, string | undefined> = {
-          session: process.env.STRIPE_SESSION_PRICE_ID,
-          creator_pro:
-            process.env.STRIPE_CREATOR_PRO_PRICE_ID ||
-            process.env.STRIPE_PRO_PRICE_ID,
-          studio_pro:
-            process.env.STRIPE_STUDIO_PRO_PRICE_ID ||
-            process.env.STRIPE_LABEL_PRICE_ID,
         };
 
         // ── Resolve or reuse existing Stripe customer ──────────────────────────
@@ -863,16 +882,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
               existingSub.status,
             );
             const currentTier = (existingSub.metadata?.tier ?? "pro") as string;
+            const currentInterval =
+              existingSub.metadata?.interval === "year"
+                ? "year"
+                : existingSub.items.data[0]?.price?.recurring?.interval === "year"
+                  ? "year"
+                  : "month";
 
-            if (isActive && currentTier === plan) {
+            if (isActive && currentTier === plan && currentInterval === interval) {
               return res.json({
                 alreadyActive: true,
                 plan,
+                interval,
                 subscriptionId: existingSub.id,
               });
             }
 
-            if (isActive && currentTier !== plan) {
+            if (isActive && (currentTier !== plan || currentInterval !== interval)) {
+              const itemId = existingSub.items.data[0]?.id;
+              const nextPriceId = resolveStripePriceId(plan, interval);
+              if (itemId && nextPriceId) {
+                const updated = await stripe.subscriptions.update(
+                  existingSub.id,
+                  {
+                    items: [{ id: itemId, price: nextPriceId }],
+                    proration_behavior: "create_prorations",
+                    metadata: { tier: plan, interval, userId },
+                    expand: ["latest_invoice.payment_intent"],
+                  },
+                );
+                await storage.updateUser(userId, {
+                  subscriptionTier: plan,
+                  subscriptionInterval: interval,
+                  subscriptionStatus: updated.status,
+                } as any);
+                const secret = (updated.latest_invoice as any)?.payment_intent
+                  ?.client_secret;
+                return res.json({
+                  subscriptionId: updated.id,
+                  clientSecret: secret ?? null,
+                  plan,
+                  interval,
+                  alreadyActive: !secret && ["active", "trialing"].includes(updated.status),
+                });
+              }
               await stripe.subscriptions.cancel(user.stripeSubscriptionId);
             }
 
@@ -884,6 +937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   subscriptionId: existingSub.id,
                   clientSecret: secret,
                   plan,
+                  interval,
                 });
             }
           } catch (err: any) {
@@ -896,17 +950,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // ── Resolve price ID — create inline price if env var missing ──────────
         const pricing = planPricing[plan];
-        let priceId: string;
-        if (priceEnvMap[plan]) {
-          priceId = priceEnvMap[plan] as string;
-        } else {
+        let priceId = resolveStripePriceId(plan, interval);
+        if (!priceId) {
           console.warn(
-            `[SUBSCRIPTION] ${pricing.envKey} not set — creating inline price (demo mode).`,
+            `[SUBSCRIPTION] ${pricing.envKey} not set — creating inline ${interval} price (demo mode).`,
           );
           const inlinePrice = await stripe.prices.create({
             unit_amount: pricing.amount,
             currency: "cad",
-            recurring: { interval: "month" },
+            recurring: { interval },
             product_data: {
               name: `SplitSheet ${pricing.name}`,
             },
@@ -920,10 +972,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           items: [{ price: priceId }],
           payment_behavior: "default_incomplete",
           expand: ["latest_invoice.payment_intent"],
-          metadata: { tier: plan, userId },
+          metadata: { tier: plan, interval, userId },
         });
 
         await storage.updateUserStripeInfo(userId, customerId, subscription.id);
+        await storage.updateUser(userId, {
+          subscriptionTier: plan,
+          subscriptionInterval: interval,
+          subscriptionStatus: subscription.status,
+        } as any);
 
         const clientSecret =
           (subscription.latest_invoice as any)?.payment_intent?.client_secret ??
@@ -933,6 +990,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             subscriptionId: subscription.id,
             alreadyActive: true,
             plan,
+            interval,
           });
         }
 
@@ -940,6 +998,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           subscriptionId: subscription.id,
           clientSecret,
           plan,
+          interval,
         });
       } catch (error: any) {
         console.error("[SUBSCRIPTION ERROR]", error?.message ?? error);
@@ -1149,6 +1208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.json({
             hasSubscription: false,
             tier: user?.subscriptionTier || "free",
+            interval: user?.subscriptionInterval || "month",
             status: "inactive",
           });
         }
@@ -1166,6 +1226,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               status: subscription.status,
               tier:
                 subscription.metadata?.tier || user.subscriptionTier || "pro",
+              interval:
+                subscription.metadata?.interval ||
+                user.subscriptionInterval ||
+                "month",
               cancelAtPeriodEnd: subscription.cancel_at_period_end,
               currentPeriodStart:
                 (subscription as any).current_period_start * 1000,
@@ -1182,6 +1246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({
           hasSubscription: user.subscriptionTier !== "free",
           tier: user.subscriptionTier || "free",
+          interval: user.subscriptionInterval || "month",
           status: user.subscriptionStatus || "active",
           subscriptionId: user.stripeSubscriptionId,
           // Mock dates for demo purposes when Stripe unavailable

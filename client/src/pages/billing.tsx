@@ -14,6 +14,12 @@ import {
   FileText, Users, HardDrive, Plus, Download, ArrowRight,
   Loader2, XCircle, RefreshCw, Layers,
 } from "lucide-react";
+import BillingIntervalToggle from "@/components/BillingIntervalToggle";
+import {
+  displayPlanPrice,
+  multiCreatorQuoteMailto,
+  type BillingInterval,
+} from "@shared/billing-interval";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface SubscriptionData {
@@ -25,6 +31,7 @@ interface SubscriptionData {
   currentPeriodStart?: number;
   currentPeriodEnd?: number;
   nextBillingDate?: number;
+  interval?: BillingInterval;
 }
 
 interface DashboardStats {
@@ -45,12 +52,12 @@ interface Contract {
 // ── Plan config ───────────────────────────────────────────────────────────────
 type PlanKey = "free" | "session" | "pro" | "creator_pro" | "studio_pro";
 
-const PLANS: Record<PlanKey, { name: string; price: string; contractLimit: number | null; billing: string }> = {
-  free:        { name: "Starter Split",    price: "$0",         contractLimit: 1,    billing: "Free · no card needed" },
-  session:     { name: "Pay-Per-Session",  price: "$25 CAD",    contractLimit: 5,    billing: "Per completed session" },
-  pro:         { name: "Multi-Creator",    price: "$50–$75 CAD", contractLimit: null, billing: "Per project · quote-based" },
-  creator_pro: { name: "Creator Pro",      price: "$15 CAD/mo", contractLimit: null, billing: "Unlimited sessions" },
-  studio_pro:  { name: "Studio Pro",       price: "$49 CAD/mo", contractLimit: null, billing: "Unlimited projects & team" },
+const PLANS: Record<PlanKey, { name: string; contractLimit: number | null }> = {
+  free:        { name: "Starter Split", contractLimit: 1 },
+  session:     { name: "Pay-Per-Session", contractLimit: 5 },
+  pro:         { name: "Multi-Creator", contractLimit: null },
+  creator_pro: { name: "Creator Pro", contractLimit: null },
+  studio_pro:  { name: "Studio Pro", contractLimit: null },
 };
 
 const PLAN_FEATURES: Record<PlanKey, string[]> = {
@@ -67,23 +74,24 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
 }) {
   const { toast } = useToast();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [interval, setInterval] = useState<BillingInterval>("month");
+  const [quoteInterval, setQuoteInterval] = useState<BillingInterval>("month");
 
   async function handleUpgrade(plan: string) {
     setLoadingPlan(plan);
     try {
       // Quote-based Multi-Creator — no self-serve Stripe subscription yet
       if (plan === "pro") {
-        window.location.href =
-          "mailto:enterprise@splitsheet.ca?subject=Multi-Creator%20plan%20quote";
+        window.location.href = multiCreatorQuoteMailto(quoteInterval);
         toast({
           title: "Request a quote",
-          description: "Multi-Creator is quote-based. We opened an email to enterprise@splitsheet.ca.",
+          description: `Multi-Creator is quote-based. We opened an email for a ${quoteInterval === "year" ? "annual" : "monthly"} quote.`,
         });
         return;
       }
 
       // apiRequest returns the Response — parse JSON manually
-      const res  = await apiRequest("POST", "/api/get-or-create-subscription", { plan });
+      const res  = await apiRequest("POST", "/api/get-or-create-subscription", { plan, interval });
       const data = await res.json();
 
       // Server returned an error object
@@ -120,7 +128,8 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
       if (data?.clientSecret) {
         sessionStorage.setItem("stripe_client_secret", data.clientSecret);
         sessionStorage.setItem("stripe_plan", plan);
-        window.location.href = `/subscribe?plan=${encodeURIComponent(plan)}`;
+        sessionStorage.setItem("stripe_interval", interval);
+        window.location.href = `/subscribe?plan=${encodeURIComponent(plan)}&interval=${interval}`;
         return;
       }
 
@@ -159,9 +168,13 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
           <DialogTitle className="text-base font-semibold">Upgrade your plan</DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-            Choose the plan that fits your music career. Scroll to compare all options.
+            Choose the plan that fits your music career. Save 2 months with annual billing on Creator Pro and Studio Pro.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="px-6 pt-4">
+          <BillingIntervalToggle value={interval} onChange={setInterval} />
+        </div>
 
         <div
           className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-5 space-y-4 scroll-smooth [scrollbar-gutter:stable]"
@@ -171,6 +184,7 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
         >
           {(["session", "pro", "creator_pro", "studio_pro"] as PlanKey[]).map((plan) => {
             const cfg = PLANS[plan];
+            const shown = displayPlanPrice(plan, plan === "session" || plan === "free" ? "month" : interval);
             const isCurrent    = plan === currentPlan;
             const isLoading    = loadingPlan === plan;
             const anyLoading   = loadingPlan !== null;
@@ -184,14 +198,35 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
                       {plan === "session" && (
                         <span className="text-xs bg-accent text-accent-foreground rounded-full px-2 py-0.5 font-semibold">Most Popular</span>
                       )}
+                      {shown.saveBadge && (
+                        <span className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-full px-2 py-0.5 font-semibold">{shown.saveBadge}</span>
+                      )}
                       {isCurrent && (
                         <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5">Current</span>
                       )}
                     </div>
                     <p className="text-2xl font-bold text-foreground mt-1">
-                      {cfg.price}
+                      {shown.price}
                     </p>
-                    <p className="text-xs text-muted-foreground">{cfg.billing}</p>
+                    {shown.monthlyEquivalent && (
+                      <p className="text-xs text-muted-foreground">{shown.monthlyEquivalent} equivalent</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">{shown.billing}</p>
+                    {plan === "pro" && (
+                      <label className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>Quote term</span>
+                        <select
+                          aria-label="Multi-Creator quote billing interval"
+                          className="rounded-md border border-border bg-background px-2 py-1 text-foreground"
+                          value={quoteInterval}
+                          onChange={(e) => setQuoteInterval(e.target.value as BillingInterval)}
+                          data-testid="multi-creator-quote-interval"
+                        >
+                          <option value="month">Monthly</option>
+                          <option value="year">Annual</option>
+                        </select>
+                      </label>
+                    )}
                   </div>
                   {!isCurrent && (
                     <Button
@@ -205,7 +240,7 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
                         ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Starting…</>
                         : plan === "pro"
                           ? <><span>Get Quote</span><ArrowRight className="h-3 w-3 ml-1" /></>
-                          : <><span>Start Session</span><ArrowRight className="h-3 w-3 ml-1" /></>}
+                          : <><span>Get Started</span><ArrowRight className="h-3 w-3 ml-1" /></>}
                     </Button>
                   )}
                 </div>
@@ -322,6 +357,8 @@ export default function Billing() {
   const rawTier = subscriptionData?.tier ?? (user as any)?.subscriptionTier ?? "free";
   const planKey: PlanKey = tierMap[rawTier] ?? "free";
   const plan = PLANS[planKey];
+  const currentInterval: BillingInterval = subscriptionData?.interval === "year" ? "year" : "month";
+  const currentPrice = displayPlanPrice(planKey, currentInterval);
   const isActive = subscriptionData?.hasSubscription && subscriptionData?.status === "active";
 
   // Live usage numbers
@@ -386,7 +423,7 @@ export default function Billing() {
                     <div>
                       <p className="text-3xl font-bold text-accent">{plan.name}</p>
                       <p className="text-muted-foreground mt-1 text-sm">
-                        {plan.price} · {plan.billing}
+                        {currentPrice.price} · {currentPrice.billing}
                       </p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
@@ -520,7 +557,7 @@ export default function Billing() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-foreground text-sm">{plan.price}</p>
+                      <p className="font-semibold text-foreground text-sm">{currentPrice.price}</p>
                       <button
                         className="text-accent text-xs hover:underline mt-0.5 flex items-center gap-1 ml-auto"
                         onClick={() => openCustomerPortal()}

@@ -87,6 +87,15 @@ export async function ensureProductionFeatureSchema(): Promise<void> {
       ADD COLUMN IF NOT EXISTS referral_code varchar;
   `);
   await db.execute(sql`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS subscription_interval varchar DEFAULT 'month';
+  `);
+  await db.execute(sql`
+    UPDATE users
+    SET subscription_interval = 'month'
+    WHERE subscription_interval IS NULL OR subscription_interval = '';
+  `);
+  await db.execute(sql`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_referral_code
       ON users (referral_code) WHERE referral_code IS NOT NULL;
   `);

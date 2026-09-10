@@ -41,7 +41,9 @@ export const users = pgTable("users", {
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   subscriptionStatus: varchar("subscription_status").default("free"),
-  subscriptionTier: varchar("subscription_tier").default("free"), // free, pro, label
+  subscriptionTier: varchar("subscription_tier").default("free"), // free, session, creator_pro, studio_pro
+  /** month | year — existing subscribers are backfilled to month */
+  subscriptionInterval: varchar("subscription_interval").default("month"),
   role: varchar("role").default("user"), // user, admin
   /** Auth0 subject (`sub`) — links Universal Login identity without destroying legacy ids */
   auth0Sub: varchar("auth0_sub"),

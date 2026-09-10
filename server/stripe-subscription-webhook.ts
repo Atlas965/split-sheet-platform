@@ -10,6 +10,31 @@ import { sql } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
 import { isVercelRuntime } from "./runtime";
+import {
+  defaultSubscriptionInterval,
+  mapStripePriceIdToPlan,
+  parseBillingInterval,
+  type BillingInterval,
+} from "@shared/billing-interval";
+
+export function entitlementFromStripeSubscription(subscription: Stripe.Subscription): {
+  tier: string;
+  interval: BillingInterval;
+} {
+  const priceId = subscription.items?.data?.[0]?.price?.id;
+  const mapped = mapStripePriceIdToPlan(priceId);
+  const metaInterval = parseBillingInterval(subscription.metadata?.interval);
+  const recurring = subscription.items?.data?.[0]?.price?.recurring?.interval;
+  const interval: BillingInterval =
+    mapped?.interval ||
+    (metaInterval.ok ? metaInterval.interval : null) ||
+    (recurring === "year" ? "year" : "month");
+  const tier =
+    mapped?.tier ||
+    (subscription.metadata?.tier as string) ||
+    "pro";
+  return { tier, interval };
+}
 
 const SUBSCRIPTION_EVENTS = new Set([
   "checkout.session.completed",
@@ -101,12 +126,13 @@ async function syncSubscriptionToUser(subscription: Stripe.Subscription): Promis
     return;
   }
 
-  const tier = (subscription.metadata?.tier as string) || "pro";
+  const { tier, interval } = entitlementFromStripeSubscription(subscription);
   const active = ["active", "trialing"].includes(subscription.status);
 
   await storage.updateUser(user.id, {
     subscriptionStatus: subscription.status,
     subscriptionTier: active ? tier : "free",
+    subscriptionInterval: active ? interval : defaultSubscriptionInterval(null),
     stripeSubscriptionId: subscription.id,
     stripeCustomerId: customerId,
   });
@@ -133,6 +159,10 @@ async function handleCheckoutSessionCompleted(
 
   if (userId && customerId) {
     await storage.updateUserStripeInfo(userId, customerId, subscriptionId || "");
+    const parsed = parseBillingInterval(session.metadata?.interval);
+    await storage.updateUser(userId, {
+      subscriptionInterval: parsed.ok ? parsed.interval : "month",
+    } as any);
     console.log(
       `[stripe/webhook] checkout linked user=${userId} customer=${customerId} sub=${subscriptionId || "n/a"}`,
     );

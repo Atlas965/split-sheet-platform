@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, ArrowLeft } from "lucide-react";
+import { displayPlanPrice, parseBillingInterval, type BillingInterval } from "@shared/billing-interval";
 
 if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
   throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
@@ -15,30 +16,38 @@ if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 // ── Plan display config ────────────────────────────────────────────────────────
-const PLAN_CONFIG: Record<string, { label: string; price: string; features: string[] }> = {
-  pro: {
-    label: "Pro",
-    price: "$19/month",
-    features: ["Unlimited agreements", "All contract templates", "Collaborator tracking",
-                "Payment dashboard", "Activity log", "Receipt vault", "Priority support"],
-  },
-  label: {
-    label: "Label",
-    price: "$49/month",
-    features: ["Everything in Pro", "Team management", "Multi-artist roster",
-                "Custom templates", "SMS notifications", "Dedicated support"],
-  },
-};
+function planDisplay(planKey: string, interval: BillingInterval) {
+  if (planKey === "creator_pro" || planKey === "studio_pro") {
+    const shown = displayPlanPrice(planKey, interval);
+    return {
+      label: planKey === "studio_pro" ? "Studio Pro" : "Creator Pro",
+      price: shown.price,
+      features:
+        planKey === "studio_pro"
+          ? ["Unlimited projects and contributors", "Team management dashboard", "Role-based permissions", "Priority support"]
+          : ["Unlimited sessions", "Project history storage", "Saved contributor profiles", "Discounted premium exports"],
+    };
+  }
+  if (planKey === "session") {
+    const shown = displayPlanPrice("session", "month");
+    return { label: "Pay-Per-Session", price: shown.price, features: ["Up to 5 contributors", "PDF export package"] };
+  }
+  return {
+    label: "Creator Pro",
+    price: displayPlanPrice("creator_pro", interval).price,
+    features: ["Unlimited sessions", "Project history storage"],
+  };
+}
 
 // ── Payment form ───────────────────────────────────────────────────────────────
-function SubscribeForm({ planKey }: { planKey: string }) {
+function SubscribeForm({ planKey, interval }: { planKey: string; interval: BillingInterval }) {
   const stripe   = useStripe();
   const elements = useElements();
   const { toast } = useToast();
   const [processing, setProcessing] = useState(false);
   const [succeeded, setSucceeded]   = useState(false);
 
-  const cfg = PLAN_CONFIG[planKey] ?? PLAN_CONFIG.pro;
+  const cfg = planDisplay(planKey, interval);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +76,7 @@ function SubscribeForm({ planKey }: { planKey: string }) {
       // Clean up session storage
       sessionStorage.removeItem("stripe_client_secret");
       sessionStorage.removeItem("stripe_plan");
+      sessionStorage.removeItem("stripe_interval");
       setTimeout(() => {
         window.location.href = "/billing?upgraded=true";
       }, 2000);
@@ -116,20 +126,24 @@ function SubscribeForm({ planKey }: { planKey: string }) {
 // ── Main Subscribe page ────────────────────────────────────────────────────────
 interface SubscribeProps {
   plan?: string;
+  interval?: string;
 }
 
-export default function Subscribe({ plan = "pro" }: SubscribeProps) {
+export default function Subscribe({ plan = "creator_pro", interval: intervalProp }: SubscribeProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
 
   const planKey = plan.toLowerCase();
-  const cfg     = PLAN_CONFIG[planKey] ?? PLAN_CONFIG.pro;
+  const parsed = parseBillingInterval(intervalProp ?? sessionStorage.getItem("stripe_interval"));
+  const interval = parsed.ok ? parsed.interval : "month";
+  const cfg     = planDisplay(planKey === "pro" || planKey === "label" ? "creator_pro" : planKey, interval);
 
   const [clientSecret, setClientSecret] = useState<string>(() => {
     // Priority 1: read from sessionStorage (set by billing dialog)
     const stored = sessionStorage.getItem("stripe_client_secret");
     const storedPlan = sessionStorage.getItem("stripe_plan");
-    if (stored && storedPlan === planKey) return stored;
+    const storedInterval = sessionStorage.getItem("stripe_interval") || "month";
+    if (stored && storedPlan === planKey && storedInterval === interval) return stored;
     return "";
   });
 
@@ -156,7 +170,7 @@ export default function Subscribe({ plan = "pro" }: SubscribeProps) {
     // Fallback: direct navigation to /subscribe — make a fresh API call
     if (isAuthenticated && !clientSecret) {
       setLoading(true);
-      apiRequest("POST", "/api/get-or-create-subscription", { plan: planKey })
+      apiRequest("POST", "/api/get-or-create-subscription", { plan: planKey, interval })
         .then((res) => res.json())
         .then((data) => {
           if (data?.error?.message) {
@@ -276,7 +290,7 @@ export default function Subscribe({ plan = "pro" }: SubscribeProps) {
                   },
                 }}
               >
-                <SubscribeForm planKey={planKey} />
+                <SubscribeForm planKey={planKey} interval={interval} />
               </Elements>
             )}
           </div>

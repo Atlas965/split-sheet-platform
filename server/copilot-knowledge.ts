@@ -15,8 +15,8 @@ export const COPILOT_PRICING = [
   "• **Pay-Per-Session** — $25 CAD/session: up to 5 contributors, full workflow + PDF",
   "• **Multi-Creator** — $50–75 CAD/project: up to 10 contributors, quote-based",
   "• **Express add-on** — +$25 CAD: priority processing per session",
-  "• **Creator Pro** — $15 CAD/month: unlimited sessions, analytics, AI assistant",
-  "• **Studio Pro** — $49 CAD/month: unlimited projects, team workspaces, bulk exports",
+  "• **Creator Pro** — $15 CAD/month or $150 CAD/year (save 2 months)",
+  "• **Studio Pro** — $49 CAD/month or $490 CAD/year (save 2 months)",
   "• **Enterprise** — custom pricing for labels, publishers, and rights organizations",
 ].join("\n");
 

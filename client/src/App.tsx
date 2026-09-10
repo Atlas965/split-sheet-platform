@@ -59,7 +59,8 @@ function AuthenticatedRoutes() {
           component={() => {
             const params = new URLSearchParams(window.location.search);
             const plan = params.get("plan") ?? "pro";
-            return <Subscribe plan={plan} />;
+            const interval = params.get("interval") ?? "month";
+            return <Subscribe plan={plan} interval={interval} />;
           }}
         />
         <Route path="/admin" component={Admin} />
