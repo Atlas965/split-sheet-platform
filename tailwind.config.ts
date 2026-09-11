@@ -84,10 +84,20 @@ export default {
             height: "0",
           },
         },
+        "landing-shimmer": {
+          "0%": { backgroundPosition: "0% 50%" },
+          "100%": { backgroundPosition: "100% 50%" },
+        },
+        "landing-pulse-ring": {
+          "0%": { transform: "scale(1)", opacity: "0.45" },
+          "100%": { transform: "scale(1.35)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "landing-shimmer": "landing-shimmer 8s linear infinite",
+        "landing-pulse-ring": "landing-pulse-ring 1.8s ease-out infinite",
       },
     },
   },

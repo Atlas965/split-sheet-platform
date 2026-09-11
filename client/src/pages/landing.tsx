@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import Logo from "@/components/Logo";
 import Footer from "@/components/Footer";
 import BillingIntervalToggle from "@/components/BillingIntervalToggle";
+import OperatorWorkspaceDemo from "@/components/landing/OperatorWorkspaceDemo";
+import { MotionCta, Reveal } from "@/components/landing/LandingMotion";
 import {
   displayPlanPrice,
   multiCreatorQuoteMailto,
@@ -84,84 +87,10 @@ const TEMPLATE_CATEGORIES = [
   "Live / touring",
 ] as const;
 
-function ProductMock() {
-  return (
-    <div
-      className="relative w-full overflow-hidden rounded-xl border border-border bg-card shadow-xl shadow-black/[0.06]"
-      aria-hidden
-    >
-      <div className="flex items-center gap-2 border-b border-border bg-muted/60 px-4 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-border" />
-        <span className="h-2.5 w-2.5 rounded-full bg-border" />
-        <span className="h-2.5 w-2.5 rounded-full bg-border" />
-        <span className="ml-3 text-xs font-medium text-muted-foreground">
-          Operator workspace · Projects
-        </span>
-      </div>
-      <div className="grid gap-0 md:grid-cols-[11rem_1fr]">
-        <aside className="hidden space-y-2 border-r border-border bg-muted/30 p-4 md:block">
-          {["Projects", "Clients", "Agreements", "Ownership", "Billing"].map((item, i) => (
-            <div
-              key={item}
-              className={`rounded-md px-3 py-2 text-xs font-medium ${
-                i === 0 ? "bg-accent/15 text-foreground" : "text-muted-foreground"
-              }`}
-            >
-              {item}
-            </div>
-          ))}
-        </aside>
-        <div className="space-y-4 p-4 sm:p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Active project
-              </p>
-              <p className="text-lg font-semibold text-foreground">Midnight Drive</p>
-              <p className="text-xs text-muted-foreground">3 contributors · splits set</p>
-            </div>
-            <span className="rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-semibold text-foreground">
-              Pending confirmation
-            </span>
-          </div>
-          <div className="space-y-2">
-            {[
-              { name: "Jordan S.", role: "Producer", pct: "40%", status: "Confirmed" },
-              { name: "Maya C.", role: "Writer", pct: "35%", status: "Sent" },
-              { name: "Dev P.", role: "Co-writer", pct: "25%", status: "Not sent" },
-            ].map((row) => (
-              <div
-                key={row.name}
-                className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2.5"
-              >
-                <div>
-                  <p className="text-sm font-medium text-foreground">{row.name}</p>
-                  <p className="text-xs text-muted-foreground">{row.role}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-foreground">{row.pct}</p>
-                  <p className="text-[11px] text-muted-foreground">{row.status}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <span className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">
-              Send confirmations
-            </span>
-            <span className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground">
-              Open agreement
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function Landing() {
   const [interval, setInterval] = useState<BillingInterval>("month");
   const [quoteInterval, setQuoteInterval] = useState<BillingInterval>("month");
+  const reduce = useReducedMotion();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -172,30 +101,31 @@ export default function Landing() {
             <span className="text-lg font-bold tracking-tight text-primary">SplitSheet</span>
           </a>
           <div className="hidden items-center gap-7 text-sm md:flex">
-            <a href="#how-it-works" className="text-muted-foreground transition-colors hover:text-foreground">
-              How It Works
-            </a>
-            <a href="#product" className="text-muted-foreground transition-colors hover:text-foreground">
-              Product
-            </a>
-            <a href="#templates" className="text-muted-foreground transition-colors hover:text-foreground">
-              Templates
-            </a>
-            <a href="#pricing" className="text-muted-foreground transition-colors hover:text-foreground">
-              Pricing
-            </a>
-            <a href="#security" className="text-muted-foreground transition-colors hover:text-foreground">
-              Security
-            </a>
-            <a href="/login" className="text-muted-foreground transition-colors hover:text-foreground">
-              Sign In
-            </a>
-            <a
+            {[
+              ["#how-it-works", "How It Works"],
+              ["#product", "Product"],
+              ["#templates", "Templates"],
+              ["#pricing", "Pricing"],
+              ["#security", "Security"],
+              ["/login", "Sign In"],
+            ].map(([href, label]) => (
+              <motion.a
+                key={href}
+                href={href}
+                className="relative text-muted-foreground transition-colors hover:text-foreground"
+                whileHover={reduce ? undefined : { y: -1 }}
+              >
+                {label}
+              </motion.a>
+            ))}
+            <motion.a
               href="/login"
-              className="rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              className="rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground"
+              whileHover={reduce ? undefined : { y: -2 }}
+              whileTap={reduce ? undefined : { scale: 0.98 }}
             >
               Get Started
-            </a>
+            </motion.a>
           </div>
           <a
             href="/login"
@@ -212,7 +142,11 @@ export default function Landing() {
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_50%_-10%,hsl(210_100%_60%/0.14),transparent_60%)]"
         />
         <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-24">
-          <div>
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: "easeOut" }}
+          >
             <p className="mb-4 text-sm font-semibold tracking-wide text-accent">SplitSheet</p>
             <h1 className="max-w-xl text-4xl font-bold leading-[1.1] tracking-tight text-foreground sm:text-5xl">
               Music rights documentation, built for the people who run it.
@@ -223,24 +157,22 @@ export default function Landing() {
               in one operator-managed workflow.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <a
-                href="/login"
-                className="inline-flex items-center justify-center rounded-lg bg-primary px-7 py-3.5 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                Get Started
-              </a>
-              <a
-                href="#how-it-works"
-                className="inline-flex items-center justify-center rounded-lg border border-border bg-card px-7 py-3.5 text-base font-semibold text-foreground transition-colors hover:bg-muted"
-              >
+              <MotionCta href="/login">Get Started</MotionCta>
+              <MotionCta href="#how-it-works" variant="secondary">
                 See How It Works
-              </a>
+              </MotionCta>
             </div>
             <p className="mt-5 text-sm text-muted-foreground">
               Software for rights workflows — not a law firm, marketplace, or escrow service.
             </p>
-          </div>
-          <ProductMock />
+          </motion.div>
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 28 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, delay: 0.12, ease: "easeOut" }}
+          >
+            <OperatorWorkspaceDemo />
+          </motion.div>
         </div>
       </section>
 
@@ -267,13 +199,15 @@ export default function Landing() {
 
       <section id="product" className="border-b border-border">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
-          <h2 className="max-w-2xl text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Music rights workflows become complicated fast.
-          </h2>
-          <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-            SplitSheet replaces fragmented documents, messages, spreadsheets, and
-            follow-ups with a structured workflow.
-          </p>
+          <Reveal>
+            <h2 className="max-w-2xl text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              Music rights workflows become complicated fast.
+            </h2>
+            <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
+              SplitSheet replaces fragmented documents, messages, spreadsheets, and
+              follow-ups with a structured workflow.
+            </p>
+          </Reveal>
           <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
               "Split information gets scattered across tools",
@@ -282,13 +216,12 @@ export default function Landing() {
               "Teams need to know who has confirmed",
               "Records need to stay organized and retrievable",
               "Operators need an auditable history of what happened",
-            ].map((item) => (
-              <li
-                key={item}
-                className="border-l-2 border-accent/40 pl-4 text-sm leading-relaxed text-foreground"
-              >
-                {item}
-              </li>
+            ].map((item, i) => (
+              <Reveal key={item} delay={i * 0.05}>
+                <li className="border-l-2 border-accent/40 pl-4 text-sm leading-relaxed text-foreground">
+                  {item}
+                </li>
+              </Reveal>
             ))}
           </ul>
         </div>
@@ -304,12 +237,20 @@ export default function Landing() {
             Evidence → Rights ledger
           </p>
           <ol className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {WORKFLOW_STEPS.map((step) => (
-              <li key={step.n} className="rounded-xl border border-border bg-card p-5">
+            {WORKFLOW_STEPS.map((step, i) => (
+              <motion.li
+                key={step.n}
+                initial={reduce ? false : { opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ delay: i * 0.06, duration: 0.4 }}
+                whileHover={reduce ? undefined : { y: -4 }}
+                className="rounded-xl border border-border bg-card p-5"
+              >
                 <p className="text-xs font-bold tracking-widest text-accent">{step.n}</p>
                 <h3 className="mt-2 text-base font-semibold text-foreground">{step.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.desc}</p>
-              </li>
+              </motion.li>
             ))}
           </ol>
         </div>
@@ -325,7 +266,7 @@ export default function Landing() {
             and billing — the surfaces operators use day to day.
           </p>
           <div className="mt-10 max-w-4xl">
-            <ProductMock />
+            <OperatorWorkspaceDemo loop={false} />
           </div>
           <ul className="mt-8 flex flex-wrap gap-2 text-sm text-muted-foreground">
             {[
@@ -367,11 +308,19 @@ export default function Landing() {
                 title: "Labels / music administrators",
                 body: "Manage documentation and rights workflows across multiple creators and projects.",
               },
-            ].map((card) => (
-              <div key={card.title} className="rounded-xl border border-border bg-card p-6">
+            ].map((card, i) => (
+              <motion.div
+                key={card.title}
+                initial={reduce ? false : { opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+                whileHover={reduce ? undefined : { y: -4 }}
+                className="rounded-xl border border-border bg-card p-6"
+              >
                 <h3 className="text-lg font-semibold text-foreground">{card.title}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{card.body}</p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -389,7 +338,14 @@ export default function Landing() {
           </p>
           <ol className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             {["Secure link", "Review", "Confirm", "Evidence recorded"].map((step, i, arr) => (
-              <li key={step} className="flex items-center gap-3">
+              <motion.li
+                key={step}
+                initial={reduce ? false : { opacity: 0, x: 10 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+                className="flex items-center gap-3"
+              >
                 <span className="rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground">
                   {step}
                 </span>
@@ -398,7 +354,7 @@ export default function Landing() {
                     →
                   </span>
                 )}
-              </li>
+              </motion.li>
             ))}
           </ol>
         </div>
@@ -413,13 +369,18 @@ export default function Landing() {
             Use catalog templates across common music documentation categories.
           </p>
           <div className="mt-8 flex flex-wrap gap-2">
-            {TEMPLATE_CATEGORIES.map((cat) => (
-              <span
+            {TEMPLATE_CATEGORIES.map((cat, i) => (
+              <motion.span
                 key={cat}
+                initial={reduce ? false : { opacity: 0, scale: 0.96 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.04 }}
+                whileHover={reduce ? undefined : { y: -2 }}
                 className="rounded-full border border-border bg-card px-3.5 py-1.5 text-sm text-foreground"
               >
                 {cat}
-              </span>
+              </motion.span>
             ))}
           </div>
           <p className="mt-8 max-w-3xl text-sm leading-relaxed text-muted-foreground">
@@ -548,11 +509,17 @@ export default function Landing() {
                   ? `/subscribe?plan=${plan.key}&interval=${interval}`
                   : "/login";
               return (
-              <div
+              <motion.div
                 key={plan.name}
+                layout
+                initial={reduce ? false : { opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                whileHover={reduce ? undefined : { y: -5 }}
+                transition={{ type: "spring", stiffness: 320, damping: 26 }}
                 className={`flex flex-col rounded-xl border bg-card p-6 ${
                   plan.featured
-                    ? "border-accent shadow-lg shadow-accent/10"
+                    ? "border-accent"
                     : "border-border"
                 }`}
               >
@@ -581,17 +548,14 @@ export default function Landing() {
                     </li>
                   ))}
                 </ul>
-                <a
+                <MotionCta
                   href={href}
-                  className={`mt-6 block rounded-lg py-2.5 text-center text-sm font-semibold transition-colors ${
-                    plan.featured
-                      ? "bg-accent text-accent-foreground hover:bg-accent/90"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90"
-                  }`}
+                  variant={plan.featured ? "accent" : "primary"}
+                  className="mt-6 w-full px-4 py-2.5 text-sm"
                 >
                   Get Started
-                </a>
-              </div>
+                </MotionCta>
+              </motion.div>
               );
             })}
           </div>
@@ -646,18 +610,12 @@ export default function Landing() {
             maintain the record.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a
-              href="/login"
-              className="inline-flex w-full items-center justify-center rounded-lg bg-primary px-7 py-3.5 text-base font-semibold text-primary-foreground hover:bg-primary/90 sm:w-auto"
-            >
+            <MotionCta href="/login" className="w-full sm:w-auto">
               Get Started
-            </a>
-            <a
-              href="#how-it-works"
-              className="inline-flex w-full items-center justify-center rounded-lg border border-border bg-card px-7 py-3.5 text-base font-semibold text-foreground hover:bg-muted sm:w-auto"
-            >
+            </MotionCta>
+            <MotionCta href="#how-it-works" variant="secondary" className="w-full sm:w-auto">
               Explore SplitSheet
-            </a>
+            </MotionCta>
           </div>
         </div>
       </section>
