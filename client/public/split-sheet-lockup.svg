@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" role="img" aria-labelledby="ssTitle ssDesc">
+  <title id="ssTitle">SplitSheet</title>
+  <desc id="ssDesc">Document icon with music note beside the SplitSheet wordmark</desc>
+
+  <g id="document-icon">
+    <rect
+      x="69"
+      y="79"
+      width="172"
+      height="242"
+      rx="26"
+      fill="none"
+      stroke="#12263F"
+      stroke-width="18"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <g fill="none" stroke="#12263F" stroke-width="16" stroke-linecap="round">
+      <line x1="95" y1="128" x2="198" y2="128" />
+      <line x1="95" y1="166" x2="178" y2="166" />
+      <line x1="95" y1="204" x2="152" y2="204" />
+    </g>
+    <g fill="#12263F">
+      <ellipse cx="176" cy="286" rx="23" ry="18" transform="rotate(-22 176 286)" />
+      <rect x="189" y="224" width="12" height="64" rx="6" />
+      <path d="M201 224 C 216 228 224 242 222 256 C 226 244 220 234 201 230 Z" />
+    </g>
+  </g>
+
+  <g
+    id="wordmark"
+    fill="#12263F"
+    font-family="Poppins, Montserrat, system-ui, sans-serif"
+    font-weight="800"
+    font-size="150"
+  >
+    <text x="310" y="205" dominant-baseline="alphabetic">Split</text>
+    <text x="310" y="360" dominant-baseline="alphabetic">Sheet </text>
+  </g>
+</svg>

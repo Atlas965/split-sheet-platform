@@ -41,6 +41,18 @@ const OPERATOR_PLANS = [
     featured: true,
   },
   {
+    key: "pro" as const,
+    name: "Multi-Creator",
+    features: [
+      "Better for operators managing multiple contributors",
+      "Quote-based setup for complex ownership structures",
+      "Project-level coordination and contributor follow-up",
+      "Enhanced audit history and operational traceability",
+      "Supports teams, labels, and rights administrators",
+    ],
+    featured: false,
+  },
+  {
     key: "creator_pro" as const,
     name: "Creator Pro",
     features: [
@@ -64,6 +76,177 @@ const OPERATOR_PLANS = [
     ],
     featured: false,
   },
+  {
+    key: "enterprise" as const,
+    name: "Enterprise",
+    features: [
+      "Unlimited projects",
+      "Unlimited contributors",
+      "Multi-team organization management",
+      "Advanced role-based permissions",
+      "Enterprise Rights Ledger",
+      "Advanced audit history",
+      "Bulk operations",
+      "Advanced reporting",
+      "Contributor confirmation workflows",
+      "API access and webhooks",
+      "Custom onboarding and support",
+    ],
+    featured: false,
+  },
+] as const;
+
+const PLAN_WINDOWS = [
+  {
+    key: "pro" as const,
+    title: "Multi-Creator",
+    eyebrow: "For operators and admins",
+    useCase:
+      "Best for labels, managers, studios, and independent operators handling multiple creators, collaborators, and complex ownership structures in one workflow.",
+    details: [
+      "Coordinate contributors across multiple projects",
+      "Track ownership and confirmations in one operating view",
+      "Create a single quote-based path for complex workflows",
+    ],
+    href: (interval: BillingInterval) => multiCreatorQuoteMailto(interval),
+    cta: "Request a quote",
+    featured: false,
+  },
+  {
+    key: "enterprise" as const,
+    title: "Enterprise",
+    eyebrow: "For organizations with scale",
+    useCase:
+      "Built for multi-team music businesses that need centralized governance, custom onboarding, advanced rights reporting, and stronger operational controls.",
+    details: [
+      "Unlimited projects and contributors",
+      "Role-based governance and team management",
+      "Advanced rights ledger and audit visibility",
+      "Custom onboarding and strategic support",
+    ],
+    href: () => "/enterprise/demo",
+    cta: "Request an Enterprise Demo",
+    featured: true,
+  },
+] as const;
+
+const BEST_FOR_BADGES = [
+  { label: "Solo operators", value: "Starter Split" },
+  { label: "Multi-creator teams", value: "Multi-Creator" },
+  { label: "Recurring workflows", value: "Creator Pro" },
+  { label: "Growing organizations", value: "Studio Pro" },
+  { label: "Enterprise governance", value: "Enterprise" },
+] as const;
+
+const PLAN_COMPARISON = [
+  {
+    feature: "Best for",
+    values: {
+      starter: "Solo operators",
+      multi: "Labels & managers",
+      creator: "Independent creators",
+      studio: "Growing teams",
+      enterprise: "Large organizations",
+    },
+  },
+  {
+    feature: "Contributor volume",
+    values: {
+      starter: "Up to 2",
+      multi: "Multiple creators",
+      creator: "Unlimited sessions",
+      studio: "Unlimited projects",
+      enterprise: "Unlimited scale",
+    },
+  },
+  {
+    feature: "Rights oversight",
+    values: {
+      starter: "Basic",
+      multi: "Structured",
+      creator: "Full project history",
+      studio: "Advanced team audit",
+      enterprise: "Enterprise governance",
+    },
+  },
+  {
+    feature: "Typical path",
+    values: {
+      starter: "Get started quickly",
+      multi: "Quote-based ops",
+      creator: "Self-serve growth",
+      studio: "Team operations",
+      enterprise: "Custom rollout",
+    },
+  },
+] as const;
+
+const PLAN_FEATURE_MATRIX = [
+  {
+    feature: "Contributor confirmation links",
+    values: { starter: "✓", session: "✓", multi: "✓", creator: "✓", studio: "✓", enterprise: "✓" },
+  },
+  {
+    feature: "Unlimited projects",
+    values: { starter: "✕", session: "✕", multi: "✕", creator: "✓", studio: "✓", enterprise: "✓" },
+  },
+  {
+    feature: "Unlimited contributors",
+    values: { starter: "✕", session: "✕", multi: "✓", creator: "✓", studio: "✓", enterprise: "✓" },
+  },
+  {
+    feature: "Advanced role-based access",
+    values: { starter: "✕", session: "✕", multi: "✕", creator: "✕", studio: "✓", enterprise: "✓" },
+  },
+  {
+    feature: "Enterprise rights ledger",
+    values: { starter: "✕", session: "✕", multi: "✕", creator: "✕", studio: "✓", enterprise: "✓" },
+  },
+  {
+    feature: "Advanced audit history",
+    values: { starter: "✕", session: "✓", multi: "✓", creator: "✓", studio: "✓", enterprise: "✓" },
+  },
+  {
+    feature: "API access / webhooks",
+    values: { starter: "✕", session: "✕", multi: "✕", creator: "✕", studio: "✕", enterprise: "✓" },
+  },
+  {
+    feature: "Custom onboarding + support",
+    values: { starter: "✕", session: "✕", multi: "✕", creator: "✕", studio: "✕", enterprise: "✓" },
+  },
+] as const;
+
+const PLAN_PROS_CONS = [
+  {
+    plan: "Starter Split",
+    benefits: ["Easy onboarding", "Low-friction project setup", "Works for small workflows"],
+    disadvantages: ["Limited contributor count", "No enterprise scale", "Less governance"],
+  },
+  {
+    plan: "Pay-Per-Session",
+    benefits: ["Simple per-project billing", "Good for occasional operators", "Clean project-based flow"],
+    disadvantages: ["Can grow expensive", "Less ideal for recurring teams", "Fewer scale controls"],
+  },
+  {
+    plan: "Multi-Creator",
+    benefits: ["Built for operational scale", "Structured contributor management", "Quote-based flexibility"],
+    disadvantages: ["More coordination required", "Not as custom as enterprise", "Quote-based onboarding"],
+  },
+  {
+    plan: "Creator Pro",
+    benefits: ["Unlimited sessions", "Good recurring value", "Better project history tracking"],
+    disadvantages: ["Less enterprise governance", "Fewer team controls", "Not intended for large org rollout"],
+  },
+  {
+    plan: "Studio Pro",
+    benefits: ["Team operations support", "Advanced audit usage", "Useful for growing studios"],
+    disadvantages: ["Not built for multi-company scale", "More admin complexity", "Limited custom onboarding"],
+  },
+  {
+    plan: "Enterprise",
+    benefits: ["Unlimited scale", "Governance and multi-team ops", "Custom onboarding and support", "API access and advanced controls"],
+    disadvantages: ["Higher cost and commitment", "Requires rollout planning", "Best suited to larger organizations"],
+  },
 ] as const;
 
 const WORKFLOW_STEPS = [
@@ -85,6 +268,21 @@ const TEMPLATE_CATEGORIES = [
   "Artist / label",
   "Management",
   "Live / touring",
+] as const;
+
+const TRUST_BADGES = [
+  "Operator-first workflow",
+  "Contributor-friendly confirmation links",
+  "Evidence-backed project records",
+  "Rights-ledger ready",
+] as const;
+
+const SOCIAL_PROOF = [
+  "Studios",
+  "Labels",
+  "Independent producers",
+  "Rights administrators",
+  "Creative operators",
 ] as const;
 
 export default function Landing() {
@@ -162,6 +360,16 @@ export default function Landing() {
                 See How It Works
               </MotionCta>
             </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {TRUST_BADGES.map((badge) => (
+                <span
+                  key={badge}
+                  className="rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-muted-foreground"
+                >
+                  {badge}
+                </span>
+              ))}
+            </div>
             <p className="mt-5 text-sm text-muted-foreground">
               Software for rights workflows — not a law firm, marketplace, or escrow service.
             </p>
@@ -178,22 +386,36 @@ export default function Landing() {
 
       <section className="border-b border-border bg-muted/50">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-          <p className="text-sm font-semibold text-foreground">
-            Built by{" "}
-            <a
-              href="https://soundledger.ca"
-              className="text-accent underline-offset-2 hover:underline"
-              target="_blank"
-              rel="noreferrer"
-            >
-              SoundLedger Technologies Inc.
-            </a>
-          </p>
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-            SplitSheet is the first product from SoundLedger Technologies Inc.,
-            an Ontario technology company building infrastructure for music rights
-            and creator workflows.
-          </p>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                Built by{" "}
+                <a
+                  href="https://soundledger.ca"
+                  className="text-accent underline-offset-2 hover:underline"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  SoundLedger Technologies Inc.
+                </a>
+              </p>
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                SplitSheet is the first product from SoundLedger Technologies Inc.,
+                an Ontario technology company building infrastructure for music rights
+                and creator workflows.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs font-medium text-muted-foreground">
+              {SOCIAL_PROOF.map((item) => (
+                <span
+                  key={item}
+                  className="rounded-full border border-border bg-card px-2.5 py-1.5"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -487,88 +709,23 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="pricing" className="border-b border-border bg-muted/40">
+      <section id="pricing" className="border-b border-border bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.12),transparent_46%),hsl(var(--muted)_/_0.7)]">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
-          <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Simple operator billing
-          </h2>
-          <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
-            Operators pay for the workspace in CAD. Contributors do not need a paid account. Save 2 months with annual billing on Creator Pro and Studio Pro.
-          </p>
-          <div className="mt-8">
-            <BillingIntervalToggle value={interval} onChange={setInterval} />
-          </div>
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {OPERATOR_PLANS.map((plan) => {
-              const shown = displayPlanPrice(
-                plan.key,
-                plan.key === "free" || plan.key === "session" ? "month" : interval,
-              );
-              const href =
-                plan.key === "creator_pro" || plan.key === "studio_pro"
-                  ? `/subscribe?plan=${plan.key}&interval=${interval}`
-                  : "/login";
-              return (
-              <motion.div
-                key={plan.name}
-                layout
-                initial={reduce ? false : { opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                whileHover={reduce ? undefined : { y: -5 }}
-                transition={{ type: "spring", stiffness: 320, damping: 26 }}
-                className={`flex flex-col rounded-xl border bg-card p-6 ${
-                  plan.featured
-                    ? "border-accent"
-                    : "border-border"
-                }`}
-              >
-                {plan.featured && (
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-accent">
-                    Popular
-                  </p>
-                )}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-base font-semibold text-foreground">{plan.name}</h3>
-                  {shown.saveBadge && (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
-                      {shown.saveBadge}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-3 text-3xl font-bold text-foreground">{shown.price}</p>
-                {shown.monthlyEquivalent && (
-                  <p className="mt-1 text-xs text-muted-foreground">{shown.monthlyEquivalent} equivalent</p>
-                )}
-                <p className="mt-1 text-xs text-muted-foreground">{shown.billing}</p>
-                <ul className="mt-5 flex-1 space-y-2">
-                  {plan.features.map((f) => (
-                    <li key={f} className="text-sm text-muted-foreground">
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <MotionCta
-                  href={href}
-                  variant={plan.featured ? "accent" : "primary"}
-                  className="mt-6 w-full px-4 py-2.5 text-sm"
-                >
-                  Get Started
-                </MotionCta>
-              </motion.div>
-              );
-            })}
-          </div>
-          <div className="mt-8 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center">
-            <p>
-              Multi-Creator ($50–$75 CAD, quote-based) and custom operator plans are
-              available.
-            </p>
-            <label className="flex items-center gap-2">
-              <span>Quote term</span>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">Plans</p>
+              <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                Pricing built around your workflow
+              </h2>
+              <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
+                Operators pay for the workspace in CAD. Contributors do not need a paid account. Save 2 months with annual billing on Creator Pro and Studio Pro.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 rounded-full border border-border bg-card/90 px-3 py-2 text-sm text-muted-foreground shadow-sm">
+              <span className="font-medium text-foreground">Quote term</span>
               <select
                 aria-label="Multi-Creator quote billing interval"
-                className="rounded-md border border-border bg-background px-2 py-1 text-foreground"
+                className="rounded-md border border-border bg-background px-2 py-1 text-foreground outline-none ring-0"
                 value={quoteInterval}
                 onChange={(e) => setQuoteInterval(e.target.value as BillingInterval)}
                 data-testid="landing-quote-interval"
@@ -576,13 +733,260 @@ export default function Landing() {
                 <option value="month">Monthly</option>
                 <option value="year">Annual</option>
               </select>
-            </label>
-            <a
-              href={multiCreatorQuoteMailto(quoteInterval)}
-              className="font-medium text-accent underline-offset-2 hover:underline"
-            >
-              Request a quote
-            </a>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-wrap gap-2">
+            {BEST_FOR_BADGES.map((badge) => (
+              <span
+                key={badge.label}
+                className="rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-muted-foreground"
+              >
+                {badge.label}: <span className="text-foreground">{badge.value}</span>
+              </span>
+            ))}
+          </div>
+
+          <div className="mt-8 grid gap-5 lg:grid-cols-2">
+            {PLAN_WINDOWS.map((plan) => {
+              const shown = displayPlanPrice(plan.key, quoteInterval);
+              const href = plan.href(quoteInterval);
+
+              return (
+                <motion.article
+                  key={plan.title}
+                  initial={reduce ? false : { opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  whileHover={reduce ? undefined : { y: -5 }}
+                  transition={{ type: "spring", stiffness: 320, damping: 26 }}
+                  className={`rounded-3xl border p-6 shadow-sm ${
+                    plan.featured
+                      ? "border-accent bg-gradient-to-br from-accent/10 via-card to-card shadow-lg shadow-accent/10"
+                      : "border-border bg-gradient-to-br from-card via-card to-accent/5"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
+                        {plan.eyebrow}
+                      </p>
+                      <h3 className="mt-2 text-2xl font-bold text-foreground">{plan.title}</h3>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${plan.featured ? "bg-accent text-primary-foreground" : "bg-accent/10 text-accent"}`}>
+                      {shown.price}
+                    </span>
+                  </div>
+
+                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{plan.useCase}</p>
+
+                  <ul className="mt-5 space-y-2.5">
+                    {plan.details.map((detail) => (
+                      <li key={detail} className="flex items-start gap-2.5 text-sm text-foreground">
+                        <span className="mt-1.5 h-2 w-2 rounded-full bg-accent" aria-hidden />
+                        <span>{detail}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="mt-6 flex items-center justify-between gap-3 border-t border-border pt-4">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{shown.billing}</p>
+                      {shown.monthlyEquivalent && (
+                        <p className="text-xs text-muted-foreground">{shown.monthlyEquivalent} equivalent</p>
+                      )}
+                    </div>
+                    <MotionCta href={href} className="shrink-0 px-4 py-2.5 text-sm">
+                      {plan.cta}
+                    </MotionCta>
+                  </div>
+                </motion.article>
+              );
+            })}
+          </div>
+
+          <div className="mt-10 rounded-2xl border border-border bg-card/70 p-4 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Operator plans
+              </p>
+              <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" aria-hidden />
+                <span>Annual billing available</span>
+              </div>
+            </div>
+            <BillingIntervalToggle value={interval} onChange={setInterval} />
+          </div>
+
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {OPERATOR_PLANS.map((plan) => {
+              const shown = displayPlanPrice(
+                plan.key,
+                plan.key === "free" || plan.key === "session" ? "month" : interval,
+              );
+              const href =
+                plan.key === "enterprise"
+                  ? "/enterprise/demo"
+                  : plan.key === "pro"
+                    ? multiCreatorQuoteMailto(quoteInterval)
+                    : plan.key === "creator_pro" || plan.key === "studio_pro"
+                      ? `/subscribe?plan=${plan.key}&interval=${interval}`
+                      : "/login";
+
+              return (
+                <motion.div
+                  key={plan.name}
+                  layout
+                  initial={reduce ? false : { opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  whileHover={reduce ? undefined : { y: -5 }}
+                  transition={{ type: "spring", stiffness: 320, damping: 26 }}
+                  className={`flex flex-col rounded-2xl border bg-card/80 p-5 shadow-sm ${
+                    plan.featured ? "border-accent bg-card" : "border-border"
+                  }`}
+                >
+                  {plan.featured && (
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
+                      Popular
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-semibold text-foreground">{plan.name}</h3>
+                    {shown.saveBadge && (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                        {shown.saveBadge}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-3 text-3xl font-bold text-foreground">{shown.price}</p>
+                  {shown.monthlyEquivalent && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">{shown.monthlyEquivalent} equivalent</p>
+                  )}
+                  <p className="mt-1 text-[11px] text-muted-foreground">{shown.billing}</p>
+                  <ul className="mt-5 flex-1 space-y-2">
+                    {plan.features.map((f) => (
+                      <li key={f} className="text-sm text-muted-foreground">
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <MotionCta
+                    href={href}
+                    variant={plan.featured ? "accent" : "primary"}
+                    className="mt-6 w-full px-4 py-2.5 text-sm"
+                  >
+                    {plan.key === "enterprise"
+                      ? "Request an Enterprise Demo"
+                      : plan.key === "pro"
+                        ? "Request a Quote"
+                        : "Get Started"}
+                  </MotionCta>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          <div className="mt-10 overflow-hidden rounded-2xl border border-border bg-card/80 shadow-sm">
+            <div className="border-b border-border px-4 py-3 text-left">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Detailed plan comparison
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-muted/50 text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Feature</th>
+                    <th className="px-4 py-3 font-medium">Starter Split</th>
+                    <th className="px-4 py-3 font-medium">Pay-Per-Session</th>
+                    <th className="px-4 py-3 font-medium">Multi-Creator</th>
+                    <th className="px-4 py-3 font-medium">Creator Pro</th>
+                    <th className="px-4 py-3 font-medium">Studio Pro</th>
+                    <th className="px-4 py-3 font-medium">Enterprise</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {PLAN_FEATURE_MATRIX.map((row) => (
+                    <tr key={row.feature} className="border-t border-border">
+                      <td className="px-4 py-3 font-medium text-foreground">{row.feature}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.values.starter}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.values.session}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.values.multi}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.values.creator}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.values.studio}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.values.enterprise}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="mt-10 grid gap-6 lg:grid-cols-2">
+            {PLAN_PROS_CONS.map((plan) => (
+              <div key={plan.plan} className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold text-foreground">{plan.plan}</h3>
+                  {plan.plan === "Enterprise" && (
+                    <span className="rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
+                      Best for scale
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+                      Benefits
+                    </p>
+                    <ul className="space-y-2 text-sm text-foreground">
+                      {plan.benefits.map((item) => (
+                        <li key={item} className="flex items-start gap-2">
+                          <span className="mt-0.5 text-emerald-600 dark:text-emerald-400">✓</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-500">
+                      Disadvantages
+                    </p>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      {plan.disadvantages.map((item) => (
+                        <li key={item} className="flex items-start gap-2">
+                          <span className="mt-0.5 text-red-500">✕</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <p>
+              Multi-Creator ($50–$75 CAD, quote-based), custom operator plans, and
+              Enterprise deployments are available.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <a
+                href={multiCreatorQuoteMailto(quoteInterval)}
+                className="font-medium text-accent underline-offset-2 hover:underline"
+              >
+                Request a quote
+              </a>
+              <a
+                href="/enterprise/demo"
+                className="font-medium text-accent underline-offset-2 hover:underline"
+              >
+                Request an Enterprise Demo
+              </a>
+            </div>
           </div>
         </div>
       </section>

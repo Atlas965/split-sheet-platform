@@ -452,6 +452,8 @@ export const splitConfirmations = pgTable("split_confirmations", {
   consumedAt: timestamp("consumed_at"),
   /** Phase 6 — legal doc versions accepted at confirm time (e.g. contributor_consent) */
   consentVersions: jsonb("consent_versions"),
+  /** Lock the exact active legal document record version used at confirmation time. */
+  legalDocVersionId: varchar("legal_doc_version_id"),
   confirmedName: varchar("confirmed_name"),
   confirmedEmail: varchar("confirmed_email"),
   confirmationNote: text("confirmation_note"),

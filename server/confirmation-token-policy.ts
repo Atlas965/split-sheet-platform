@@ -67,6 +67,10 @@ export async function ensureContributorTokenSchema(): Promise<void> {
   `);
   await db.execute(sql`
     ALTER TABLE split_confirmations
+      ADD COLUMN IF NOT EXISTS legal_doc_version_id varchar;
+  `);
+  await db.execute(sql`
+    ALTER TABLE split_confirmations
       ADD COLUMN IF NOT EXISTS qr_generated_at timestamp;
   `);
   await db.execute(sql`

@@ -166,6 +166,7 @@ __export(schema_exports, {
   negotiationConversations: () => negotiationConversations,
   negotiations: () => negotiations,
   notifications: () => notifications,
+  operatorClients: () => operatorClients,
   organizationApiKeys: () => organizationApiKeys,
   organizationApiKeysRelations: () => organizationApiKeysRelations,
   organizationMembers: () => organizationMembers,
@@ -211,7 +212,7 @@ import {
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var sessions, users, contractTemplates, templateAuditLog, voiceSessions, voiceTurns, voicePendingActions, voiceProvenance, voiceUserMemory, contracts, contractCollaborators, contractSignatures, userActivity, profileViews, negotiations, negotiationConversations, userMatches, messages, notifications, confirmations, songAssets, licenseRecords, ownershipRecords, revenueEvents, payoutRecords, userBalances, splitConfirmations, organizations, organizationMembers, organizationApiKeys, ORGANIZATION_TYPES, ORGANIZATION_ROLES, TERRITORIES, OWNERSHIP_RIGHT_TYPES, rightsOrganizations, creators, creatorRightsProfiles, compositionAssets, masterAssets, licenseReadiness, paymentEvents, errorLogs, rateLimitBuckets, verificationCodes, LEGAL_DOC_TYPES, legalDocuments, legalAcceptances, usersRelations, contractsRelations, contractCollaboratorsRelations, contractSignaturesRelations, organizationsRelations, organizationMembersRelations, organizationApiKeysRelations, confirmationsRelations, creatorsRelations, creatorRightsProfilesRelations, compositionAssetsRelations, masterAssetsRelations, licenseReadinessRelations, insertUserSchema, insertContractTemplateSchema, insertContractSchema, insertContractCollaboratorSchema, insertContractSignatureSchema, insertUserActivitySchema, insertProfileViewSchema, insertNegotiationSchema, insertNegotiationConversationSchema, insertUserMatchSchema, insertMessageSchema, insertNotificationSchema, insertConfirmationSchema, insertSongAssetSchema, insertOwnershipRecordSchema, insertRevenueEventSchema, insertPayoutRecordSchema, insertUserBalanceSchema, insertSplitConfirmationSchema, insertPaymentEventSchema, insertErrorLogSchema, insertVerificationCodeSchema, insertOrganizationSchema, insertOrganizationMemberSchema, insertOrganizationApiKeySchema, insertRightsOrganizationSchema, insertCreatorSchema, insertCreatorRightsProfileSchema, insertCompositionAssetSchema, insertMasterAssetSchema, insertLicenseReadinessSchema, insertLegalDocumentSchema, insertLegalAcceptanceSchema, activityEventSchema, batchActivitiesSchema;
+var sessions, users, contractTemplates, templateAuditLog, voiceSessions, voiceTurns, voicePendingActions, voiceProvenance, voiceUserMemory, operatorClients, contracts, contractCollaborators, contractSignatures, userActivity, profileViews, negotiations, negotiationConversations, userMatches, messages, notifications, confirmations, songAssets, licenseRecords, ownershipRecords, revenueEvents, payoutRecords, userBalances, splitConfirmations, organizations, organizationMembers, organizationApiKeys, ORGANIZATION_TYPES, ORGANIZATION_ROLES, TERRITORIES, OWNERSHIP_RIGHT_TYPES, rightsOrganizations, creators, creatorRightsProfiles, compositionAssets, masterAssets, licenseReadiness, paymentEvents, errorLogs, rateLimitBuckets, verificationCodes, LEGAL_DOC_TYPES, legalDocuments, legalAcceptances, usersRelations, contractsRelations, contractCollaboratorsRelations, contractSignaturesRelations, organizationsRelations, organizationMembersRelations, organizationApiKeysRelations, confirmationsRelations, creatorsRelations, creatorRightsProfilesRelations, compositionAssetsRelations, masterAssetsRelations, licenseReadinessRelations, insertUserSchema, insertContractTemplateSchema, insertContractSchema, insertContractCollaboratorSchema, insertContractSignatureSchema, insertUserActivitySchema, insertProfileViewSchema, insertNegotiationSchema, insertNegotiationConversationSchema, insertUserMatchSchema, insertMessageSchema, insertNotificationSchema, insertConfirmationSchema, insertSongAssetSchema, insertOwnershipRecordSchema, insertRevenueEventSchema, insertPayoutRecordSchema, insertUserBalanceSchema, insertSplitConfirmationSchema, insertPaymentEventSchema, insertErrorLogSchema, insertVerificationCodeSchema, insertOrganizationSchema, insertOrganizationMemberSchema, insertOrganizationApiKeySchema, insertRightsOrganizationSchema, insertCreatorSchema, insertCreatorRightsProfileSchema, insertCompositionAssetSchema, insertMasterAssetSchema, insertLicenseReadinessSchema, insertLegalDocumentSchema, insertLegalAcceptanceSchema, activityEventSchema, batchActivitiesSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -239,7 +240,9 @@ var init_schema = __esm({
       stripeSubscriptionId: varchar("stripe_subscription_id"),
       subscriptionStatus: varchar("subscription_status").default("free"),
       subscriptionTier: varchar("subscription_tier").default("free"),
-      // free, pro, label
+      // free, session, creator_pro, studio_pro
+      /** month | year — existing subscribers are backfilled to month */
+      subscriptionInterval: varchar("subscription_interval").default("month"),
       role: varchar("role").default("user"),
       // user, admin
       /** Auth0 subject (`sub`) — links Universal Login identity without destroying legacy ids */
@@ -254,6 +257,7 @@ var init_schema = __esm({
       // Terms of Service / Privacy Policy acceptance
       termsAcceptedAt: timestamp("terms_accepted_at"),
       termsVersion: varchar("terms_version"),
+      referralCode: varchar("referral_code"),
       createdAt: timestamp("created_at").defaultNow(),
       updatedAt: timestamp("updated_at").defaultNow()
     });
@@ -373,6 +377,21 @@ var init_schema = __esm({
       // preference | collaborator | workflow | terminology
       authorized: boolean("authorized").default(true),
       expiresAt: timestamp("expires_at"),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    operatorClients = pgTable("operator_clients", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      organizationId: varchar("organization_id"),
+      createdBy: varchar("created_by").notNull(),
+      name: varchar("name").notNull(),
+      email: varchar("email"),
+      phone: varchar("phone"),
+      company: varchar("company"),
+      type: varchar("type").default("artist"),
+      notes: text("notes"),
+      defaultOwnershipPercentage: decimal("default_ownership_percentage", { precision: 5, scale: 2 }),
+      defaultRoyaltyPercentage: decimal("default_royalty_percentage", { precision: 5, scale: 2 }),
       createdAt: timestamp("created_at").defaultNow(),
       updatedAt: timestamp("updated_at").defaultNow()
     });
@@ -613,6 +632,8 @@ var init_schema = __esm({
       consumedAt: timestamp("consumed_at"),
       /** Phase 6 — legal doc versions accepted at confirm time (e.g. contributor_consent) */
       consentVersions: jsonb("consent_versions"),
+      /** Lock the exact active legal document record version used at confirmation time. */
+      legalDocVersionId: varchar("legal_doc_version_id"),
       confirmedName: varchar("confirmed_name"),
       confirmedEmail: varchar("confirmed_email"),
       confirmationNote: text("confirmation_note"),
@@ -2977,6 +2998,10 @@ async function ensureContributorTokenSchema() {
   `);
   await db.execute(sql4`
     ALTER TABLE split_confirmations
+      ADD COLUMN IF NOT EXISTS legal_doc_version_id varchar;
+  `);
+  await db.execute(sql4`
+    ALTER TABLE split_confirmations
       ADD COLUMN IF NOT EXISTS qr_generated_at timestamp;
   `);
   await db.execute(sql4`
@@ -3015,6 +3040,134 @@ var init_confirmation_token_policy = __esm({
   }
 });
 
+// server/feature-schema.ts
+var feature_schema_exports = {};
+__export(feature_schema_exports, {
+  ensureProductionFeatureSchema: () => ensureProductionFeatureSchema
+});
+import { sql as sql5 } from "drizzle-orm";
+async function ensureProductionFeatureSchema() {
+  await db.execute(sql5`
+    CREATE TABLE IF NOT EXISTS confirmation_reminders (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      confirmation_id varchar NOT NULL,
+      contract_id varchar NOT NULL,
+      collaborator_id varchar NOT NULL,
+      stage varchar NOT NULL,
+      reminder_type varchar NOT NULL DEFAULT 'pending_confirmation',
+      delivery_status varchar NOT NULL DEFAULT 'sent',
+      attempt_count integer NOT NULL DEFAULT 1,
+      sent_at timestamp NOT NULL DEFAULT now(),
+      created_at timestamp NOT NULL DEFAULT now(),
+      UNIQUE (confirmation_id, stage)
+    )
+  `);
+  await db.execute(sql5`
+    CREATE INDEX IF NOT EXISTS idx_confirmation_reminders_contract
+      ON confirmation_reminders (contract_id);
+  `);
+  await db.execute(sql5`
+    CREATE INDEX IF NOT EXISTS idx_confirmation_reminders_sent_at
+      ON confirmation_reminders (sent_at);
+  `);
+  await db.execute(sql5`
+    ALTER TABLE organizations
+      ADD COLUMN IF NOT EXISTS logo_url varchar,
+      ADD COLUMN IF NOT EXISTS phone varchar,
+      ADD COLUMN IF NOT EXISTS address text,
+      ADD COLUMN IF NOT EXISTS public_slug varchar,
+      ADD COLUMN IF NOT EXISTS verification_status varchar DEFAULT 'unverified',
+      ADD COLUMN IF NOT EXISTS verified_at timestamp,
+      ADD COLUMN IF NOT EXISTS badge_tier varchar DEFAULT 'none';
+  `);
+  await db.execute(sql5`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_organizations_public_slug
+      ON organizations (public_slug) WHERE public_slug IS NOT NULL;
+  `);
+  await db.execute(sql5`
+    CREATE TABLE IF NOT EXISTS studio_verification_events (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id varchar NOT NULL,
+      actor_id varchar,
+      action varchar NOT NULL,
+      badge_tier varchar,
+      note text,
+      created_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql5`
+    CREATE INDEX IF NOT EXISTS idx_studio_verification_org
+      ON studio_verification_events (organization_id, created_at);
+  `);
+  await db.execute(sql5`
+    CREATE TABLE IF NOT EXISTS operator_custom_fields (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id varchar,
+      created_by varchar NOT NULL,
+      template_type varchar NOT NULL DEFAULT 'split-sheet',
+      label varchar NOT NULL,
+      field_type varchar NOT NULL,
+      required boolean NOT NULL DEFAULT false,
+      placeholder varchar,
+      options jsonb,
+      default_value text,
+      display_order integer NOT NULL DEFAULT 0,
+      created_at timestamp NOT NULL DEFAULT now(),
+      updated_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql5`
+    CREATE INDEX IF NOT EXISTS idx_operator_custom_fields_owner
+      ON operator_custom_fields (created_by, template_type);
+  `);
+  await db.execute(sql5`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS referral_code varchar;
+  `);
+  await db.execute(sql5`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS subscription_interval varchar DEFAULT 'month';
+  `);
+  await db.execute(sql5`
+    UPDATE users
+    SET subscription_interval = 'month'
+    WHERE subscription_interval IS NULL OR subscription_interval = '';
+  `);
+  await db.execute(sql5`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_referral_code
+      ON users (referral_code) WHERE referral_code IS NOT NULL;
+  `);
+  await db.execute(sql5`
+    CREATE TABLE IF NOT EXISTS referrals (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      referrer_id varchar NOT NULL,
+      referral_code varchar NOT NULL,
+      referred_user_id varchar,
+      status varchar NOT NULL DEFAULT 'PENDING',
+      expires_at timestamp,
+      converted_at timestamp,
+      created_at timestamp NOT NULL DEFAULT now(),
+      updated_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql5`
+    CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals (referrer_id);
+  `);
+  await db.execute(sql5`
+    CREATE INDEX IF NOT EXISTS idx_referrals_code ON referrals (referral_code);
+  `);
+  await db.execute(sql5`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_referrals_referred
+      ON referrals (referred_user_id) WHERE referred_user_id IS NOT NULL;
+  `);
+}
+var init_feature_schema = __esm({
+  "server/feature-schema.ts"() {
+    "use strict";
+    init_db();
+  }
+});
+
 // server/org-context.ts
 var org_context_exports = {};
 __export(org_context_exports, {
@@ -3027,7 +3180,7 @@ __export(org_context_exports, {
   setActiveOrganization: () => setActiveOrganization
 });
 import crypto2 from "crypto";
-import { eq as eq2, and as and2, isNull as isNull2, sql as sql5 } from "drizzle-orm";
+import { eq as eq2, and as and2, isNull as isNull2, sql as sql6 } from "drizzle-orm";
 async function generateUniqueSlOrgId() {
   for (let attempt = 0; attempt < 5; attempt++) {
     const shortId = crypto2.randomBytes(6).toString("hex").slice(0, 8).toUpperCase();
@@ -3038,25 +3191,25 @@ async function generateUniqueSlOrgId() {
   return `SL-ORG-${Date.now().toString(36).toUpperCase().slice(-8)}`;
 }
 async function ensureOrgTenantSchema() {
-  await db.execute(sql5`
+  await db.execute(sql6`
     ALTER TABLE users
       ADD COLUMN IF NOT EXISTS active_organization_id varchar;
   `);
-  await db.execute(sql5`
+  await db.execute(sql6`
     ALTER TABLE contracts
       ADD COLUMN IF NOT EXISTS organization_id varchar;
   `);
-  await db.execute(sql5`
+  await db.execute(sql6`
     ALTER TABLE song_assets
       ADD COLUMN IF NOT EXISTS organization_id varchar;
   `);
-  await db.execute(sql5`
+  await db.execute(sql6`
     CREATE INDEX IF NOT EXISTS idx_contracts_organization_id ON contracts (organization_id);
   `);
-  await db.execute(sql5`
+  await db.execute(sql6`
     CREATE INDEX IF NOT EXISTS idx_song_assets_organization_id ON song_assets (organization_id);
   `);
-  await db.execute(sql5`
+  await db.execute(sql6`
     UPDATE organization_members SET role = 'operator' WHERE role = 'member';
   `);
   const {
@@ -3067,6 +3220,8 @@ async function ensureOrgTenantSchema() {
   await ensureContributorTokenSchema2();
   await ensureLegalOrgAcceptanceSchema2();
   await ensureOrgStripeCustomerSchema2();
+  const { ensureProductionFeatureSchema: ensureProductionFeatureSchema2 } = await Promise.resolve().then(() => (init_feature_schema(), feature_schema_exports));
+  await ensureProductionFeatureSchema2();
 }
 async function ensurePersonalOrganization(userId) {
   await ensureOrgTenantSchema();
@@ -3185,7 +3340,7 @@ var init_org_context = __esm({
 
 // server/social-auth.ts
 import crypto3 from "crypto";
-import { sql as sql6 } from "drizzle-orm";
+import { sql as sql7 } from "drizzle-orm";
 import * as client from "openid-client";
 function isPgUniqueViolation(err) {
   const e = err;
@@ -3240,7 +3395,7 @@ function hasAnySocialProvider() {
 async function getUserByEmail(email) {
   const normalized = email.trim().toLowerCase();
   if (!normalized) return void 0;
-  const [row] = await db.select().from(users).where(sql6`lower(${users.email}) = ${normalized}`).limit(1);
+  const [row] = await db.select().from(users).where(sql7`lower(${users.email}) = ${normalized}`).limit(1);
   return row;
 }
 async function upsertSocialUser(input) {
@@ -3879,7 +4034,7 @@ var init_auth_events = __esm({
 
 // server/auth0-auth.ts
 import * as client2 from "openid-client";
-import { eq as eq3, sql as sql7 } from "drizzle-orm";
+import { eq as eq3, sql as sql8 } from "drizzle-orm";
 function isPgUniqueViolation2(err) {
   const e = err;
   const msg = String(e?.message || e?.cause?.message || e?.detail || "");
@@ -3937,11 +4092,11 @@ function readAuth0Cookie(req) {
   return void 0;
 }
 async function ensureAuth0Schema() {
-  await db.execute(sql7`
+  await db.execute(sql8`
     ALTER TABLE users
       ADD COLUMN IF NOT EXISTS auth0_sub varchar;
   `);
-  await db.execute(sql7`
+  await db.execute(sql8`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_auth0_sub
       ON users (auth0_sub)
       WHERE auth0_sub IS NOT NULL;
@@ -3954,7 +4109,7 @@ async function getUserByAuth0Sub(auth0Sub) {
 async function getUserByEmail2(email) {
   const normalized = email.trim().toLowerCase();
   if (!normalized) return void 0;
-  const [row] = await db.select().from(users).where(sql7`lower(${users.email}) = ${normalized}`).limit(1);
+  const [row] = await db.select().from(users).where(sql8`lower(${users.email}) = ${normalized}`).limit(1);
   return row;
 }
 async function upsertAuth0User(input) {
@@ -4061,8 +4216,8 @@ async function registerAuth0Auth(app) {
       `Auth0 discovery failed for https://${domain}/ (${err?.message || err}). Open Auth0 Dashboard \u2192 Applications \u2192 copy Domain exactly. Test: https://${domain}/.well-known/openid-configuration`
     );
   }
-  const limiter = createPgRateLimiter(30, 6e4, "auth-auth0");
-  app.use("/api/auth/auth0", limiter);
+  const limiter2 = createPgRateLimiter(30, 6e4, "auth-auth0");
+  app.use("/api/auth/auth0", limiter2);
   app.get("/api/auth/providers", (_req, res) => {
     res.json({
       providers: [
@@ -4243,7 +4398,7 @@ import passport from "passport";
 import session from "express-session";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
-import { sql as sql8 } from "drizzle-orm";
+import { sql as sql9 } from "drizzle-orm";
 function callbackUrlForDomain(domain) {
   const protocol = domain.startsWith("localhost") || domain.startsWith("127.0.0.1") ? "http" : "https";
   return `${protocol}://${domain}/api/callback`;
@@ -4293,7 +4448,7 @@ async function upsertUser(claims) {
     return;
   }
   if (email) {
-    const [byEmail] = await db.select().from(users).where(sql8`lower(${users.email}) = ${email}`).limit(1);
+    const [byEmail] = await db.select().from(users).where(sql9`lower(${users.email}) = ${email}`).limit(1);
     if (byEmail) {
       await storage.updateUser(byEmail.id, {
         email: email || byEmail.email,
@@ -4317,7 +4472,7 @@ async function upsertUser(claims) {
     const msg = String(err?.message || "");
     if (err?.code === "23505" || /users_email_unique/i.test(msg)) {
       if (email) {
-        const [byEmail] = await db.select().from(users).where(sql8`lower(${users.email}) = ${email}`).limit(1);
+        const [byEmail] = await db.select().from(users).where(sql9`lower(${users.email}) = ${email}`).limit(1);
         if (byEmail) {
           claims["sub"] = byEmail.id;
           return;
@@ -5003,6 +5158,32 @@ If you weren't expecting this, you can safely ignore this email.
     </div>`;
   return { subject, html, text: text2 };
 }
+function reminderLinkEmail(params) {
+  const { contributorName, songTitle, confirmUrl, stage } = params;
+  const subject = `Reminder: confirm your split for "${songTitle}"`;
+  const text2 = `Hi ${contributorName},
+
+This is a reminder to review and confirm your split for "${songTitle}".
+
+Confirm here: ${confirmUrl}
+
+If you already confirmed, you can ignore this email.
+
+\u2014 SplitSheet`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a1a;">
+      <h2>Reminder: confirm your split</h2>
+      <p>Hi ${contributorName},</p>
+      <p>Your confirmation for "${songTitle}" is still pending (${stage.replace("_", " ")}).</p>
+      <p style="margin:24px 0;">
+        <a href="${confirmUrl}" style="background:#111827;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600;">
+          Review &amp; Confirm Split
+        </a>
+      </p>
+      <p style="font-size:12px;color:#999;">SplitSheet \xB7 SoundLedger Technologies</p>
+    </div>`;
+  return { subject, html, text: text2 };
+}
 function verificationCodeEmail(code) {
   const subject = "Your SplitSheet verification code";
   const text2 = `Your verification code is: ${code}
@@ -5116,25 +5297,6 @@ async function requireOwnedRevenueEvent(req, res, eventId) {
     return null;
   }
   return row;
-}
-async function requireOwnedCollaborator(req, res, collaboratorId) {
-  const userId = sessionUserId(req);
-  if (!userId) {
-    res.status(401).json({ message: "Unauthorized" });
-    return null;
-  }
-  const [row] = await db.select().from(contractCollaborators).where(eq4(contractCollaborators.id, collaboratorId)).limit(1);
-  if (!row) {
-    res.status(404).json({ message: "Client not found" });
-    return null;
-  }
-  const contract = await storage.getContract(row.contractId);
-  const orgId = await resolveRequestOrgId(req);
-  if (!contract || !resourceBelongsToOrg(contract, orgId, userId)) {
-    res.status(403).json({ message: "Access denied" });
-    return null;
-  }
-  return { collaborator: row, contract };
 }
 async function canReadContract(req, contractId) {
   const userId = sessionUserId(req);
@@ -5323,7 +5485,7 @@ var init_confirmation_url = __esm({
 });
 
 // server/agreement-ledger.ts
-import { eq as eq5, sql as sql9 } from "drizzle-orm";
+import { eq as eq5, sql as sql10 } from "drizzle-orm";
 function generateSlSongId() {
   const hex = Math.random().toString(16).slice(2, 10).toUpperCase();
   return `SL-SONG-${hex}`;
@@ -5401,7 +5563,7 @@ async function syncAgreementToRightsLedger(contractId, actorId) {
       const existingAssets = await storage.getSongAssetsByContract(contractId);
       assetId = existingAssets[0]?.id;
     }
-    const [latest] = await db.select({ maxVersion: sql9`coalesce(max(${licenseRecords.version}), 0)` }).from(licenseRecords).where(eq5(licenseRecords.contractId, contractId));
+    const [latest] = await db.select({ maxVersion: sql10`coalesce(max(${licenseRecords.version}), 0)` }).from(licenseRecords).where(eq5(licenseRecords.contractId, contractId));
     const nextVersion = Number(latest?.maxVersion ?? 0) + 1;
     const [row] = await db.insert(licenseRecords).values({
       contractId,
@@ -6657,7 +6819,7 @@ var init_rights_state = __esm({
 });
 
 // server/rights-state-engine.ts
-import { sql as sql10 } from "drizzle-orm";
+import { sql as sql11 } from "drizzle-orm";
 function asRecord2(data) {
   return data && typeof data === "object" ? data : {};
 }
@@ -6735,7 +6897,7 @@ async function loadWorkflowSnapshot(contractId) {
       ownershipPercentage: c.ownershipPercentage
     }))
   );
-  const confRows = await db.execute(sql10`
+  const confRows = await db.execute(sql11`
     SELECT id, collaborator_id, status, revoked_at, expires_at, first_accessed_at,
            confirmed_at, ip_address, access_method
     FROM split_confirmations
@@ -6782,7 +6944,7 @@ async function getProjectWorkflow(contractId) {
       awaiting: status !== "confirmed" && status !== "revoked"
     };
   });
-  const timelineRows = await db.execute(sql10`
+  const timelineRows = await db.execute(sql11`
     SELECT action, before_state, after_state, created_at
     FROM audit_log
     WHERE resource_id = ${contractId}
@@ -6826,7 +6988,7 @@ async function completeConfirmedProject(params) {
   if (from !== "CONFIRMED" && from !== "EVIDENCE_RECORDED" && from !== "RIGHTS_RECORDED" && from !== "FINALIZED") {
     return { finalized: false };
   }
-  await db.execute(sql10`
+  await db.execute(sql11`
     UPDATE contracts SET status = 'signed', updated_at = NOW()
     WHERE id = ${params.contractId}
       AND status IS DISTINCT FROM 'cancelled'
@@ -6916,19 +7078,409 @@ var init_rights_state_engine = __esm({
   }
 });
 
+// server/legal-notice.ts
+function cleanMarkdownSummary(markdown) {
+  const cleaned = markdown.replace(/\r/g, "").replace(/[#>*_`\-]/g, " ").replace(/\[[^\]]*\]\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  const sentences = cleaned.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const candidate = sentences.slice(0, 2).join(" ").trim();
+  if (candidate) return candidate;
+  return cleaned.slice(0, 220).trim() || "This confirmation records your acceptance of the relevant SplitSheet project terms as an electronic record.";
+}
+function buildContributorLegalNotice(doc) {
+  const fallbackNotice = "This confirmation records your acceptance of the relevant SplitSheet project terms as an electronic record for operational evidence under Ontario-neutral recordkeeping standards.";
+  const noticeText = doc?.markdownBody?.trim() || fallbackNotice;
+  const version = doc?.version ?? null;
+  const versionId = version ?? doc?.id ?? null;
+  const summaryText = cleanMarkdownSummary(noticeText);
+  return {
+    versionId,
+    version,
+    summaryText,
+    noticeText,
+    fullNoticeUrl: "/legal/privacy-summary"
+  };
+}
+var init_legal_notice = __esm({
+  "server/legal-notice.ts"() {
+    "use strict";
+  }
+});
+
+// server/adminAuth.ts
+async function isAdmin(req, res, next) {
+  const user = req.user;
+  if (!user) {
+    res.status(401).json({ message: "Authentication required" });
+    return;
+  }
+  try {
+    const dbUser = await storage.getUser(user.claims.sub);
+    if (!dbUser) {
+      res.status(401).json({ message: "User not found" });
+      return;
+    }
+    const isAdminUser = dbUser.role === "admin";
+    if (!isAdminUser) {
+      res.status(403).json({ message: "Admin access required" });
+      return;
+    }
+    next();
+  } catch (error) {
+    console.error("Error checking admin status:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+var init_adminAuth = __esm({
+  "server/adminAuth.ts"() {
+    "use strict";
+    init_storage();
+  }
+});
+
+// shared/feature-policy.ts
+var feature_policy_exports = {};
+__export(feature_policy_exports, {
+  CUSTOM_FIELD_TYPES: () => CUSTOM_FIELD_TYPES,
+  MINUTES_SAVED_PER_CONFIRMED_PROJECT: () => MINUTES_SAVED_PER_CONFIRMED_PROJECT,
+  REMINDER_STAGES: () => REMINDER_STAGES,
+  customFieldDefSchema: () => customFieldDefSchema,
+  dueReminderStage: () => dueReminderStage,
+  estimatedMinutesSaved: () => estimatedMinutesSaved,
+  generateReferralCode: () => generateReferralCode,
+  isPersonalWorkspaceOrg: () => isPersonalWorkspaceOrg,
+  isPublishedStudio: () => isPublishedStudio,
+  mostCommonSplit: () => mostCommonSplit,
+  parseApiPage: () => parseApiPage,
+  previousPeriodDelta: () => previousPeriodDelta,
+  titlesLookSimilar: () => titlesLookSimilar,
+  validateCustomFieldValue: () => validateCustomFieldValue
+});
+import { z as z3 } from "zod";
+function dueReminderStage(sentAt, alreadySent, now = Date.now()) {
+  const sentMs = new Date(sentAt).getTime();
+  if (!Number.isFinite(sentMs)) return null;
+  const age = now - sentMs;
+  const sent = new Set(alreadySent);
+  let due = null;
+  for (const row of REMINDER_STAGES) {
+    if (age >= row.afterMs && !sent.has(row.stage)) due = row.stage;
+  }
+  return due;
+}
+function validateCustomFieldValue(field, raw) {
+  const empty = raw === void 0 || raw === null || raw === "";
+  if (empty) {
+    if (field.required) return { ok: false, message: `${field.label} is required.` };
+    return { ok: true, value: null };
+  }
+  switch (field.fieldType) {
+    case "checkbox":
+      return { ok: true, value: raw === true || raw === "true" || raw === "on" };
+    case "number": {
+      const n = typeof raw === "number" ? raw : Number(raw);
+      if (!Number.isFinite(n)) return { ok: false, message: `${field.label} must be a number.` };
+      return { ok: true, value: n };
+    }
+    case "date": {
+      const s = String(raw);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return { ok: false, message: `${field.label} must be a date.` };
+      return { ok: true, value: s };
+    }
+    case "select": {
+      const s = String(raw);
+      if (field.options?.length && !field.options.includes(s)) {
+        return { ok: false, message: `${field.label} is not a valid option.` };
+      }
+      return { ok: true, value: s };
+    }
+    default:
+      return { ok: true, value: String(raw).slice(0, 4e3) };
+  }
+}
+function estimatedMinutesSaved(confirmedProjects) {
+  return Math.max(0, confirmedProjects) * MINUTES_SAVED_PER_CONFIRMED_PROJECT;
+}
+function previousPeriodDelta(current, previous) {
+  const delta = current - previous;
+  return {
+    current,
+    previous,
+    delta,
+    label: previous === 0 && current === 0 ? "Compared with your previous period" : `${delta >= 0 ? "+" : ""}${delta} vs previous period`
+  };
+}
+function parseApiPage(query) {
+  const limit = Math.min(100, Math.max(1, Number(query.limit ?? 25) || 25));
+  const offset = Math.max(0, Number(query.offset ?? 0) || 0);
+  return { limit, offset };
+}
+function mostCommonSplit(percentages) {
+  if (!percentages.length) return null;
+  const counts = /* @__PURE__ */ new Map();
+  for (const n of percentages) {
+    const key = (Math.round(n * 100) / 100).toFixed(2);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  let best = "";
+  let bestCount = 0;
+  counts.forEach((count2, key) => {
+    if (count2 > bestCount) {
+      best = key;
+      bestCount = count2;
+    }
+  });
+  return { label: `${best}%`, count: bestCount };
+}
+function titlesLookSimilar(a, b) {
+  const na = a.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ");
+  const nb = b.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ");
+  if (!na || !nb) return false;
+  return na === nb || na.includes(nb) || nb.includes(na);
+}
+function isPublishedStudio(input) {
+  return Boolean(input.publicSlug && String(input.publicSlug).trim());
+}
+function isPersonalWorkspaceOrg(input) {
+  return Boolean(
+    input.type === "studio" && typeof input.name === "string" && input.name.trim().toLowerCase().endsWith(" workspace")
+  );
+}
+function generateReferralCode(seed) {
+  const clean = seed.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 6) || "STUDIO";
+  const suffix = Math.abs(hashString(seed)).toString(36).toUpperCase().slice(0, 4);
+  return `${clean}${suffix}`;
+}
+function hashString(value) {
+  let h = 0;
+  for (let i = 0; i < value.length; i++) h = h * 31 + value.charCodeAt(i) | 0;
+  return h;
+}
+var REMINDER_STAGES, CUSTOM_FIELD_TYPES, customFieldDefSchema, MINUTES_SAVED_PER_CONFIRMED_PROJECT;
+var init_feature_policy = __esm({
+  "shared/feature-policy.ts"() {
+    "use strict";
+    REMINDER_STAGES = [
+      { stage: "day_3", afterMs: 3 * 24 * 60 * 60 * 1e3 },
+      { stage: "day_7", afterMs: 7 * 24 * 60 * 60 * 1e3 },
+      { stage: "day_14", afterMs: 14 * 24 * 60 * 60 * 1e3 }
+    ];
+    CUSTOM_FIELD_TYPES = ["text", "textarea", "number", "date", "select", "checkbox"];
+    customFieldDefSchema = z3.object({
+      label: z3.string().trim().min(1).max(120),
+      fieldType: z3.enum(CUSTOM_FIELD_TYPES),
+      required: z3.boolean().optional(),
+      placeholder: z3.string().trim().max(200).optional(),
+      options: z3.array(z3.string().trim().min(1).max(80)).max(30).optional(),
+      defaultValue: z3.string().max(2e3).optional(),
+      displayOrder: z3.number().int().min(0).max(500).optional(),
+      templateType: z3.string().trim().max(80).optional()
+    });
+    MINUTES_SAVED_PER_CONFIRMED_PROJECT = 25;
+  }
+});
+
+// server/studio-routes.ts
+var studio_routes_exports = {};
+__export(studio_routes_exports, {
+  registerStudioRoutes: () => registerStudioRoutes,
+  studioForContract: () => studioForContract
+});
+import { sql as sql12 } from "drizzle-orm";
+function publicStudio(row) {
+  return {
+    id: row.id,
+    slOrgId: row.sl_org_id,
+    name: row.name,
+    website: row.website ?? null,
+    logoUrl: row.logo_url ?? null,
+    phone: row.phone ?? null,
+    verificationStatus: row.verification_status ?? "unverified",
+    verifiedAt: row.verified_at ?? null,
+    badgeTier: row.badge_tier ?? "none",
+    verifiedSessionCount: Number(row.verified_session_count ?? 0)
+  };
+}
+async function loadStudio(id) {
+  await ensureProductionFeatureSchema();
+  const rows = await db.execute(sql12`
+    SELECT o.id, o.sl_org_id, o.name, o.website, o.logo_url, o.phone, o.address,
+           o.verification_status, o.verified_at, o.badge_tier, o.public_slug,
+           (
+             SELECT COUNT(*) FROM contracts c
+             WHERE c.organization_id = o.id AND c.status IN ('signed', 'active')
+           ) AS verified_session_count
+    FROM organizations o
+    WHERE o.id = ${id} OR o.sl_org_id = ${id} OR o.public_slug = ${id}
+    LIMIT 1
+  `);
+  return rows.rows[0] ?? null;
+}
+function registerStudioRoutes(app) {
+  app.get("/api/studio/:id", async (req, res) => {
+    try {
+      const studio = await loadStudio(req.params.id);
+      if (!studio || !isPublishedStudio({ publicSlug: studio.public_slug })) {
+        res.status(404).json({ message: "Studio not found" });
+        return;
+      }
+      res.json(publicStudio(studio));
+    } catch (error) {
+      res.status(500).json({ message: "Failed to load studio" });
+    }
+  });
+  app.delete("/api/studio/profile", ...requireActivePermission("project.update"), async (req, res) => {
+    try {
+      const orgId = req.orgAuth?.organizationId;
+      if (!orgId) {
+        res.status(403).json({ message: "No active organization" });
+        return;
+      }
+      await ensureProductionFeatureSchema();
+      await db.execute(sql12`
+        UPDATE organizations SET
+          logo_url = NULL,
+          phone = NULL,
+          address = NULL,
+          public_slug = NULL,
+          verification_status = 'unverified',
+          verified_at = NULL,
+          badge_tier = 'none',
+          updated_at = now()
+        WHERE id = ${orgId}
+      `);
+      logger.info("studio.profile_cleared", { organizationId: orgId });
+      res.json({ ok: true, published: false });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to clear studio profile" });
+    }
+  });
+  app.patch("/api/studio/profile", ...requireActivePermission("project.update"), async (req, res) => {
+    try {
+      const orgId = req.orgAuth?.organizationId;
+      if (!orgId) {
+        res.status(403).json({ message: "No active organization" });
+        return;
+      }
+      await ensureProductionFeatureSchema();
+      const website = typeof req.body?.website === "string" ? req.body.website.trim().slice(0, 300) : void 0;
+      const phone = typeof req.body?.phone === "string" ? req.body.phone.trim().slice(0, 40) : void 0;
+      const address = typeof req.body?.address === "string" ? req.body.address.trim().slice(0, 400) : void 0;
+      const logoUrl = typeof req.body?.logoUrl === "string" ? req.body.logoUrl.trim().slice(0, 500) : void 0;
+      if (logoUrl && !/^https:\/\//i.test(logoUrl)) {
+        res.status(400).json({ message: "Logo must be an https URL." });
+        return;
+      }
+      await db.execute(sql12`
+        UPDATE organizations SET
+          website = COALESCE(${website ?? null}, website),
+          phone = COALESCE(${phone ?? null}, phone),
+          address = COALESCE(${address ?? null}, address),
+          logo_url = COALESCE(${logoUrl ?? null}, logo_url),
+          updated_at = now()
+        WHERE id = ${orgId}
+      `);
+      const studio = await loadStudio(orgId);
+      res.json(studio ? publicStudio(studio) : { id: orgId });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update studio profile" });
+    }
+  });
+  app.get("/api/admin/studios", isAuthenticated, isAdmin, async (_req, res) => {
+    await ensureProductionFeatureSchema();
+    const rows = await db.execute(sql12`
+      SELECT id, sl_org_id, name, website, verification_status, verified_at, badge_tier
+      FROM organizations
+      WHERE NOT (type = 'studio' AND name ILIKE '% Workspace')
+      ORDER BY created_at DESC
+      LIMIT 100
+    `);
+    res.json(rows.rows);
+  });
+  app.get("/api/admin/studios/:id/history", isAuthenticated, isAdmin, async (req, res) => {
+    await ensureProductionFeatureSchema();
+    const rows = await db.execute(sql12`
+      SELECT id, action, badge_tier, note, actor_id, created_at
+      FROM studio_verification_events
+      WHERE organization_id = ${req.params.id}
+      ORDER BY created_at DESC
+      LIMIT 50
+    `);
+    res.json(rows.rows);
+  });
+  app.post("/api/admin/studios/:id/verify", isAuthenticated, isAdmin, async (req, res) => {
+    await ensureProductionFeatureSchema();
+    const tier = ["none", "standard", "plus"].includes(String(req.body?.tier)) ? String(req.body.tier) : "standard";
+    await db.execute(sql12`
+      UPDATE organizations SET
+        verification_status = 'verified',
+        verified_at = now(),
+        badge_tier = ${tier},
+        updated_at = now()
+      WHERE id = ${req.params.id}
+    `);
+    await db.execute(sql12`
+      INSERT INTO studio_verification_events (organization_id, actor_id, action, badge_tier, note)
+      VALUES (${req.params.id}, ${req.user?.claims?.sub ?? null}, 'verify', ${tier}, ${String(req.body?.note ?? "") || null})
+    `);
+    logger.info("studio.verified", { organizationId: req.params.id, tier });
+    res.json({ ok: true, verificationStatus: "verified", badgeTier: tier });
+  });
+  app.post("/api/admin/studios/:id/unverify", isAuthenticated, isAdmin, async (req, res) => {
+    await ensureProductionFeatureSchema();
+    await db.execute(sql12`
+      UPDATE organizations SET
+        verification_status = 'unverified',
+        badge_tier = 'none',
+        updated_at = now()
+      WHERE id = ${req.params.id}
+    `);
+    await db.execute(sql12`
+      INSERT INTO studio_verification_events (organization_id, actor_id, action, badge_tier, note)
+      VALUES (${req.params.id}, ${req.user?.claims?.sub ?? null}, 'unverify', 'none', ${String(req.body?.note ?? "") || null})
+    `);
+    logger.info("studio.unverified", { organizationId: req.params.id });
+    res.json({ ok: true, verificationStatus: "unverified" });
+  });
+}
+async function studioForContract(contractId) {
+  const rows = await db.execute(sql12`
+    SELECT o.id, o.sl_org_id, o.name, o.website, o.logo_url, o.phone,
+           o.verification_status, o.verified_at, o.badge_tier, o.public_slug
+    FROM contracts c
+    JOIN organizations o ON o.id = c.organization_id
+    WHERE c.id = ${contractId}
+    LIMIT 1
+  `);
+  const row = rows.rows[0];
+  if (!row || !isPublishedStudio({ publicSlug: row.public_slug })) return null;
+  return publicStudio(row);
+}
+var init_studio_routes = __esm({
+  "server/studio-routes.ts"() {
+    "use strict";
+    init_db();
+    init_replitAuth();
+    init_adminAuth();
+    init_rbac_middleware();
+    init_logger();
+    init_feature_schema();
+    init_feature_policy();
+  }
+});
+
 // server/confirmation-public.ts
-import { sql as sql11 } from "drizzle-orm";
+import { sql as sql13 } from "drizzle-orm";
 function getIp(req) {
   return req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ?? req.socket.remoteAddress ?? "unknown";
 }
 async function lookupConfirmation(token, contractId) {
   if (contractId) {
-    return db.execute(sql11`
+    return db.execute(sql13`
       SELECT
         sc.id, sc.status, sc.expires_at, sc.revoked_at, sc.consumed_at, sc.confirmed_at,
         sc.collaborator_id, sc.contract_id,
         cc.name AS collaborator_name, cc.email AS collaborator_email, cc.role, cc.ownership_percentage,
-        c.title AS contract_title
+        c.title AS contract_title, c.created_by AS created_by
       FROM split_confirmations sc
       JOIN contract_collaborators cc ON cc.id = sc.collaborator_id
       JOIN contracts c ON c.id = sc.contract_id
@@ -6937,12 +7489,12 @@ async function lookupConfirmation(token, contractId) {
       LIMIT 1
     `);
   }
-  return db.execute(sql11`
+  return db.execute(sql13`
     SELECT
       sc.id, sc.status, sc.expires_at, sc.revoked_at, sc.consumed_at, sc.confirmed_at,
       sc.collaborator_id, sc.contract_id,
       cc.name AS collaborator_name, cc.email AS collaborator_email, cc.role, cc.ownership_percentage,
-      c.title AS contract_title
+      c.title AS contract_title, c.created_by AS created_by
     FROM split_confirmations sc
     JOIN contract_collaborators cc ON cc.id = sc.collaborator_id
     JOIN contracts c ON c.id = sc.contract_id
@@ -6951,7 +7503,7 @@ async function lookupConfirmation(token, contractId) {
   `);
 }
 async function recordConfirmationAccess(req, row, method) {
-  await db.execute(sql11`
+  await db.execute(sql13`
     UPDATE split_confirmations SET
       first_accessed_at = COALESCE(first_accessed_at, NOW()),
       last_accessed_at = NOW(),
@@ -7037,28 +7589,43 @@ async function handlePublicConfirmGet(req, res, token, contractId) {
       });
       return;
     }
-    const allCollabs = await db.execute(sql11`
+    const allCollabs = await db.execute(sql13`
       SELECT name, role, ownership_percentage
       FROM contract_collaborators
       WHERE contract_id = ${resolvedContractId}
       ORDER BY created_at ASC
     `);
-    let contributorConsentVersion = null;
+    let contributorLegalDoc = null;
     try {
-      const consent = await storage.getLatestLegalDocument("contributor_consent");
-      contributorConsentVersion = consent?.version ?? null;
+      contributorLegalDoc = await storage.getLatestLegalDocument("contributor_consent");
     } catch {
     }
+    const legalNotice = buildContributorLegalNotice(contributorLegalDoc ?? null);
     await recordConfirmationAccess(req, { id: row.id, contract_id: resolvedContractId }, method);
+    let studio = null;
+    try {
+      const { studioForContract: studioForContract2 } = await Promise.resolve().then(() => (init_studio_routes(), studio_routes_exports));
+      studio = await studioForContract2(resolvedContractId);
+    } catch {
+      studio = null;
+    }
     res.json({
       alreadyConfirmed: false,
+      studio,
       contractTitle: row.contract_title,
       collaboratorName: row.collaborator_name,
       collaboratorEmail: row.collaborator_email,
       collaboratorRole: row.role,
       ownershipPercentage: Number(row.ownership_percentage),
       expiresAt: row.expires_at,
-      contributorConsentVersion,
+      legalDocVersionId: legalNotice.versionId,
+      contributorConsentVersion: legalNotice.version,
+      legalNotice: {
+        versionId: legalNotice.versionId,
+        summaryText: legalNotice.summaryText,
+        noticeText: legalNotice.noticeText,
+        fullNoticeUrl: legalNotice.fullNoticeUrl
+      },
       accessMethod: method,
       allCollaborators: allCollabs.rows.map((c) => ({
         name: c.name,
@@ -7127,16 +7694,18 @@ async function handlePublicConfirmPost(req, res, token, contractId) {
     const ua = req.headers["user-agent"] ?? null;
     const method = accessMethodFromRequest(req.query.via, bodyMethod);
     let consentVersions = null;
+    let activeLegalDocVersionId = null;
     try {
       const consent = await storage.getLatestLegalDocument("contributor_consent");
       if (consent?.version) {
         consentVersions = { contributor_consent: consent.version };
       }
+      activeLegalDocVersionId = consent?.version ?? consent?.id ?? null;
     } catch {
     }
     const consentJson = consentVersions ? JSON.stringify(consentVersions) : null;
     const consumedAt = action === "confirm" ? /* @__PURE__ */ new Date() : null;
-    const updated = await db.execute(sql11`
+    const updated = await db.execute(sql13`
       UPDATE split_confirmations SET
         status            = ${newStatus},
         confirmed_name    = ${name ?? null},
@@ -7151,6 +7720,7 @@ async function handlePublicConfirmPost(req, res, token, contractId) {
         confirmed_at      = NOW(),
         consumed_at       = COALESCE(${consumedAt}, consumed_at),
         consent_versions  = COALESCE(${consentJson}::jsonb, consent_versions),
+        legal_doc_version_id = COALESCE(${activeLegalDocVersionId}, legal_doc_version_id),
         updated_at        = NOW()
       WHERE id = ${row.id}
         AND revoked_at IS NULL
@@ -7179,7 +7749,7 @@ async function handlePublicConfirmPost(req, res, token, contractId) {
         accessMethod: method,
         req
       });
-      const pendingRows = await db.execute(sql11`
+      const pendingRows = await db.execute(sql13`
         SELECT COUNT(*) AS cnt
         FROM split_confirmations
         WHERE contract_id = ${resolvedContractId}
@@ -7216,13 +7786,30 @@ async function handlePublicConfirmPost(req, res, token, contractId) {
         contractId: resolvedContractId,
         action: newStatus,
         accessMethod: method,
-        hasConsentVersions: !!consentVersions
+        hasConsentVersions: !!consentVersions,
+        legalDocVersionId: activeLegalDocVersionId
       },
       req
     });
+    const operatorId = row.created_by || null;
+    if (operatorId) {
+      const who = String(name || row.collaborator_name || "A contributor").trim();
+      try {
+        await storage.createNotification(
+          operatorId,
+          action === "confirm" ? "Contributor confirmed" : "Change requested",
+          action === "confirm" ? `${who} confirmed their split on "${row.contract_title}".` : `${who} requested a change on "${row.contract_title}".`,
+          action === "confirm" ? "confirmation" : "change_request",
+          `/projects/${resolvedContractId}`
+        );
+      } catch (notifyErr) {
+        console.warn("[PUBLIC-CONFIRM-POST] notification skipped:", notifyErr?.message);
+      }
+    }
     res.json({
       success: true,
       action: newStatus,
+      legalDocVersionId: activeLegalDocVersionId,
       message: action === "confirm" ? `Thank you${name ? ` ${name}` : ""}! Your confirmation for "${row.contract_title}" has been recorded.` : "Your change request has been recorded. The operator will follow up."
     });
   } catch (err) {
@@ -7239,18 +7826,377 @@ var init_confirmation_public = __esm({
     init_auth_events();
     init_confirmation_url();
     init_rights_state_engine();
+    init_legal_notice();
+  }
+});
+
+// shared/confirmation-send.ts
+function parseBulkProjectIds(body) {
+  const raw = body ?? {};
+  const list = raw.projectIds ?? raw.sessionIds ?? raw.ids;
+  if (!Array.isArray(list) || list.length === 0) {
+    return { ok: false, message: "Select at least one project." };
+  }
+  if (list.length > MAX_PROJECTS_PER_BULK) {
+    return { ok: false, message: `Select at most ${MAX_PROJECTS_PER_BULK} projects at a time.` };
+  }
+  const ids = list.map((id) => String(id ?? "").trim()).filter(Boolean);
+  if (ids.length !== list.length) {
+    return { ok: false, message: "Each project id must be a non-empty string." };
+  }
+  return { ok: true, ids: Array.from(new Set(ids)) };
+}
+function isContractSendable(status) {
+  const s = (status ?? "").toLowerCase();
+  if (s === "cancelled") return { ok: false, code: "session_cancelled" };
+  if (s === "signed" || s === "active") return { ok: false, code: "session_completed" };
+  return { ok: true };
+}
+function isConfirmationPending(confirmationStatus, collaboratorStatus) {
+  if (collaboratorStatus === "signed") return false;
+  const status = (confirmationStatus ?? "not_sent").toLowerCase();
+  if (status === "confirmed") return false;
+  return true;
+}
+function classifyRecipientSkip(input) {
+  const now = input.now ?? Date.now();
+  const status = (input.confirmationStatus ?? "not_sent").toLowerCase();
+  if (input.collaboratorStatus === "signed" || status === "confirmed") {
+    return { skip: true, code: "already_confirmed" };
+  }
+  if (status === "revoked" && input.mode !== "resend") {
+    return { skip: true, code: "revoked" };
+  }
+  if (!isConfirmationPending(status, input.collaboratorStatus)) {
+    return { skip: true, code: "not_pending" };
+  }
+  if (!(input.email ?? "").trim()) {
+    return { skip: true, code: "no_email" };
+  }
+  if (input.mode === "remind" && status === "not_sent") {
+    return { skip: true, code: "not_yet_sent" };
+  }
+  const sentAtMs = input.sentAt ? new Date(input.sentAt).getTime() : NaN;
+  const recentlySent = Number.isFinite(sentAtMs) && status === "sent";
+  if (recentlySent) {
+    const age = now - sentAtMs;
+    if (input.mode === "resend" && age < RESEND_COOLDOWN_MS) {
+      return { skip: true, code: "already_sent" };
+    }
+    if (input.mode !== "resend" && age < DUPLICATE_WINDOW_MS) {
+      return { skip: true, code: "already_sent" };
+    }
+  }
+  return { skip: false };
+}
+var MAX_PROJECTS_PER_BULK, MAX_EMAILS_PER_REQUEST, DUPLICATE_WINDOW_MS, RESEND_COOLDOWN_MS, SEND_TIME_BUDGET_MS;
+var init_confirmation_send = __esm({
+  "shared/confirmation-send.ts"() {
+    "use strict";
+    MAX_PROJECTS_PER_BULK = 10;
+    MAX_EMAILS_PER_REQUEST = 20;
+    DUPLICATE_WINDOW_MS = 10 * 60 * 1e3;
+    RESEND_COOLDOWN_MS = 30 * 1e3;
+    SEND_TIME_BUDGET_MS = 45e3;
+  }
+});
+
+// server/confirmation-dispatch.ts
+import { sql as sql14 } from "drizzle-orm";
+function requestBaseUrl(req) {
+  return process.env.APP_URL ?? `${req.protocol}://${req.get("host")}`;
+}
+function skipResult(projectId, contributorId, name, code, message) {
+  return { projectId, contributorId, name, ok: true, status: "skipped", code, message };
+}
+async function ensureConfirmationRow(contractId, collaboratorId, mode) {
+  const existing = await db.execute(sql14`
+    SELECT id, token, status, sent_at, revoked_at
+    FROM split_confirmations
+    WHERE contract_id = ${contractId} AND collaborator_id = ${collaboratorId}
+    LIMIT 1
+  `);
+  const expires = confirmationExpiresAt();
+  if (existing.rows.length > 0) {
+    const row2 = existing.rows[0];
+    if (mode === "resend" && String(row2.status) === "revoked") {
+      await db.execute(sql14`
+        UPDATE split_confirmations
+        SET expires_at = ${expires}, revoked_at = NULL, consumed_at = NULL,
+            status = 'not_sent', updated_at = NOW()
+        WHERE id = ${row2.id} AND status = 'revoked'
+      `);
+      return {
+        id: String(row2.id),
+        token: String(row2.token),
+        status: "not_sent",
+        sentAt: null,
+        revokedAt: null
+      };
+    }
+    await db.execute(sql14`
+      UPDATE split_confirmations
+      SET expires_at = ${expires}, updated_at = NOW()
+      WHERE id = ${row2.id} AND status != 'confirmed'
+    `);
+    return {
+      id: String(row2.id),
+      token: String(row2.token),
+      status: String(row2.status ?? "not_sent"),
+      sentAt: row2.sent_at ? new Date(String(row2.sent_at)) : null,
+      revokedAt: row2.revoked_at ? new Date(String(row2.revoked_at)) : null
+    };
+  }
+  const token = generateConfirmationToken();
+  const inserted = await db.execute(sql14`
+    INSERT INTO split_confirmations (contract_id, collaborator_id, token, status, expires_at)
+    VALUES (${contractId}, ${collaboratorId}, ${token}, 'not_sent', ${expires})
+    RETURNING id, token, status, sent_at, revoked_at
+  `);
+  const row = inserted.rows[0];
+  return {
+    id: String(row.id),
+    token: String(row.token),
+    status: String(row.status ?? "not_sent"),
+    sentAt: null,
+    revokedAt: null
+  };
+}
+async function dispatchPendingConfirmations(opts) {
+  const { contract, userId, req, mode, remainingEmails, startedAt } = opts;
+  const title = contract.title;
+  const sessionGate = isContractSendable(contract.status);
+  if (!sessionGate.ok) {
+    return {
+      projectId: contract.id,
+      title,
+      ok: true,
+      skipped: true,
+      code: sessionGate.code,
+      message: sessionGate.code === "session_cancelled" ? "Project is cancelled." : "Project is already completed.",
+      recipients: []
+    };
+  }
+  const collabs = await storage.getContractCollaborators(contract.id);
+  if (!collabs.length) {
+    return {
+      projectId: contract.id,
+      title,
+      ok: true,
+      skipped: true,
+      code: "not_pending",
+      message: "No contributors on this project.",
+      recipients: []
+    };
+  }
+  const validation = validateSplits(
+    collabs.map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      role: c.role,
+      ownershipPercentage: c.ownershipPercentage
+    }))
+  );
+  if (!validation.valid) {
+    return {
+      projectId: contract.id,
+      title,
+      ok: false,
+      skipped: true,
+      code: "invalid_splits",
+      message: validation.errors[0]?.message ?? "Splits must total 100% before sending.",
+      recipients: []
+    };
+  }
+  const snapshot = await loadWorkflowSnapshot(contract.id);
+  if (snapshot) {
+    const allowed = evaluateEvent(snapshot, "REQUEST_CONFIRMATIONS");
+    if (!allowed.ok) {
+      return {
+        projectId: contract.id,
+        title,
+        ok: false,
+        skipped: true,
+        code: "not_pending",
+        message: allowed.error,
+        recipients: []
+      };
+    }
+  }
+  const operator = await storage.getUser(userId).catch(() => void 0);
+  const operatorName = operator ? `${operator.firstName ?? ""} ${operator.lastName ?? ""}`.trim() || void 0 : void 0;
+  const baseUrl = requestBaseUrl(req);
+  const recipients = [];
+  let sentAny = false;
+  for (const collab of collabs) {
+    if (Date.now() - startedAt > SEND_TIME_BUDGET_MS || remainingEmails.value <= 0) {
+      recipients.push(skipResult(
+        contract.id,
+        collab.id,
+        collab.name,
+        "deferred",
+        "Send budget reached. Retry to continue with remaining contributors."
+      ));
+      continue;
+    }
+    const existing = await db.execute(sql14`
+      SELECT id, token, status, sent_at, revoked_at
+      FROM split_confirmations
+      WHERE contract_id = ${contract.id} AND collaborator_id = ${collab.id}
+      LIMIT 1
+    `);
+    const row = existing.rows[0];
+    const classified = classifyRecipientSkip({
+      mode,
+      confirmationStatus: row ? String(row.status) : "not_sent",
+      collaboratorStatus: collab.status,
+      email: collab.email,
+      sentAt: row?.sent_at ? new Date(String(row.sent_at)) : null
+    });
+    if (classified.skip) {
+      recipients.push(skipResult(
+        contract.id,
+        collab.id,
+        collab.name,
+        classified.code,
+        skipMessage(classified.code)
+      ));
+      continue;
+    }
+    remainingEmails.value -= 1;
+    const confirmation = await ensureConfirmationRow(contract.id, collab.id, mode);
+    const confirmUrl = opaqueConfirmUrl(baseUrl, confirmation.token);
+    const template = confirmationLinkEmail({
+      contributorName: collab.name,
+      songTitle: title,
+      operatorName,
+      confirmUrl
+    });
+    const delivery = await sendEmail({ to: String(collab.email), ...template });
+    if (delivery.delivered || delivery.mode === "log") {
+      await db.execute(sql14`
+        UPDATE split_confirmations
+        SET status = 'sent', sent_at = NOW(), updated_at = NOW()
+        WHERE id = ${confirmation.id} AND status IN ('not_sent', 'sent', 'change_requested')
+      `);
+      sentAny = true;
+      const logged = !delivery.delivered && delivery.mode === "log";
+      logger.info(mode === "resend" ? "confirmation.resent" : "confirmation.sent", {
+        userId,
+        projectId: contract.id,
+        contributorId: collab.id,
+        mode: delivery.mode
+      });
+      recipients.push({
+        projectId: contract.id,
+        contributorId: collab.id,
+        name: collab.name,
+        ok: true,
+        status: logged ? "logged" : "sent",
+        message: logged ? "Recorded in log mode (SMTP is not configured)." : "Confirmation email sent."
+      });
+    } else {
+      logger.error("confirmation.send_failed", {
+        userId,
+        projectId: contract.id,
+        contributorId: collab.id
+      });
+      recipients.push({
+        projectId: contract.id,
+        contributorId: collab.id,
+        name: collab.name,
+        ok: false,
+        status: "failed",
+        code: "send_failed",
+        message: "Email delivery failed. You can retry this recipient."
+      });
+    }
+  }
+  if (sentAny) {
+    if (contract.status === "draft") {
+      await storage.updateContract(contract.id, { status: "pending" });
+    }
+    await recordWorkflowEvent({
+      action: RSEE_ACTIONS.CONFIRMATION_REQUESTED,
+      projectId: contract.id,
+      previousState: snapshot ? snapshot.contractStatus : "AGREEMENT_READY",
+      newState: "CONFIRMATION_REQUESTED",
+      actorType: "operator",
+      actorId: userId,
+      req
+    });
+  }
+  return {
+    projectId: contract.id,
+    title,
+    ok: recipients.every((r) => r.ok),
+    recipients
+  };
+}
+function summarizeDispatch(projects) {
+  const recipients = projects.flatMap((p) => p.recipients);
+  return {
+    projects,
+    sent: recipients.filter((r) => r.status === "sent" || r.status === "logged").length,
+    failed: recipients.filter((r) => r.status === "failed").length,
+    skipped: recipients.filter((r) => r.status === "skipped").length + projects.filter((p) => p.skipped).length,
+    truncated: recipients.some((r) => r.code === "deferred"),
+    emailBudget: MAX_EMAILS_PER_REQUEST,
+    deliveryMode: emailDeliveryMode
+  };
+}
+function skipMessage(code) {
+  switch (code) {
+    case "already_confirmed":
+      return "Already confirmed.";
+    case "already_sent":
+      return "Already sent recently. Retry later or use resend.";
+    case "session_completed":
+      return "Project is already completed.";
+    case "session_cancelled":
+      return "Project is cancelled.";
+    case "revoked":
+      return "Confirmation link is revoked.";
+    case "no_email":
+      return "No email address on this contributor.";
+    case "invalid_splits":
+      return "Splits must total 100%.";
+    case "not_yet_sent":
+      return "No initial confirmation has been sent yet.";
+    case "deferred":
+      return "Deferred for a later retry.";
+    case "unauthorized":
+      return "Not authorized for this project.";
+    case "not_found":
+      return "Project not found.";
+    default:
+      return "Not pending.";
+  }
+}
+var init_confirmation_dispatch = __esm({
+  "server/confirmation-dispatch.ts"() {
+    "use strict";
+    init_db();
+    init_storage();
+    init_email_service();
+    init_logger();
+    init_confirmation_url();
+    init_split_validation();
+    init_confirmation_send();
+    init_rights_state_engine();
   }
 });
 
 // server/confirmation-routes.ts
-import { sql as sql12 } from "drizzle-orm";
+import { sql as sql15 } from "drizzle-orm";
 function generateToken() {
   return generateConfirmationToken();
 }
 function expiresAt72h() {
   return confirmationExpiresAt();
 }
-function requestBaseUrl(req) {
+function requestBaseUrl2(req) {
   return process.env.APP_URL ?? `${req.protocol}://${req.get("host")}`;
 }
 function registerConfirmationRoutes(app) {
@@ -7281,7 +8227,7 @@ function registerConfirmationRoutes(app) {
             return;
           }
         }
-        const collabRows = await db.execute(sql12`
+        const collabRows = await db.execute(sql15`
           SELECT id, name, email, role, ownership_percentage
           FROM contract_collaborators
           WHERE contract_id = ${contractId}
@@ -7295,7 +8241,7 @@ function registerConfirmationRoutes(app) {
         const results = [];
         const expires = expiresAt72h();
         for (const collab of collaborators) {
-          const existing = await db.execute(sql12`
+          const existing = await db.execute(sql15`
             SELECT id, token, status FROM split_confirmations
             WHERE contract_id = ${contractId}
               AND collaborator_id = ${collab.id}
@@ -7303,7 +8249,7 @@ function registerConfirmationRoutes(app) {
           `);
           if (existing.rows.length > 0) {
             const row = existing.rows[0];
-            await db.execute(sql12`
+            await db.execute(sql15`
               UPDATE split_confirmations
               SET expires_at = ${expires},
                   revoked_at = NULL,
@@ -7315,7 +8261,7 @@ function registerConfirmationRoutes(app) {
             results.push({ collaboratorId: collab.id, name: collab.name, token: row.token, status: row.status, isNew: false });
           } else {
             const token = generateToken();
-            await db.execute(sql12`
+            await db.execute(sql15`
               INSERT INTO split_confirmations
                 (contract_id, collaborator_id, token, status, expires_at)
               VALUES
@@ -7324,7 +8270,7 @@ function registerConfirmationRoutes(app) {
             results.push({ collaboratorId: collab.id, name: collab.name, token, status: "not_sent", isNew: true });
           }
         }
-        const baseUrl = requestBaseUrl(req);
+        const baseUrl = requestBaseUrl2(req);
         const operator = await storage.getUser(userId).catch(() => void 0);
         const operatorName = operator ? `${operator.firstName ?? ""} ${operator.lastName ?? ""}`.trim() : void 0;
         const confirmations2 = await Promise.all(
@@ -7342,7 +8288,7 @@ function registerConfirmationRoutes(app) {
               const delivery = await sendEmail({ to: collab.email, ...template });
               emailSent = delivery.delivered;
               if (delivery.delivered) {
-                await db.execute(sql12`
+                await db.execute(sql15`
                   UPDATE split_confirmations
                   SET status = 'sent', sent_at = NOW(), updated_at = NOW()
                   WHERE contract_id = ${contractId} AND collaborator_id = ${r.collaboratorId}
@@ -7391,7 +8337,7 @@ function registerConfirmationRoutes(app) {
         const owned = await requireOwnedContract(req, res, contractId);
         if (!owned) return;
         const contract = { title: owned.title, status: owned.status };
-        const rows = await db.execute(sql12`
+        const rows = await db.execute(sql15`
           SELECT
             sc.id,
             sc.token,
@@ -7419,7 +8365,7 @@ function registerConfirmationRoutes(app) {
           WHERE sc.contract_id = ${contractId}
           ORDER BY cc.created_at ASC
         `);
-        const baseUrl = requestBaseUrl(req);
+        const baseUrl = requestBaseUrl2(req);
         const confirmations2 = rows.rows.map((r) => {
           const link = opaqueConfirmUrl(baseUrl, r.token);
           return {
@@ -7494,6 +8440,29 @@ function registerConfirmationRoutes(app) {
     }
   );
   app.post(
+    "/api/contracts/:id/confirmations/resend",
+    ...requireActivePermission("agreement.send"),
+    async (req, res) => {
+      const contractId = req.params.id;
+      const userId = req.user?.claims?.sub;
+      try {
+        const owned = await requireOwnedContract(req, res, contractId);
+        if (!owned) return;
+        const project = await dispatchPendingConfirmations({
+          mode: "resend",
+          contract: owned,
+          userId,
+          req,
+          remainingEmails: { value: MAX_EMAILS_PER_REQUEST },
+          startedAt: Date.now()
+        });
+        res.json(summarizeDispatch([project]));
+      } catch (err) {
+        res.status(500).json({ error: "Failed to resend confirmations" });
+      }
+    }
+  );
+  app.post(
     "/api/contracts/:id/confirmations/:confirmId/mark-sent",
     ...requireActivePermission("agreement.send"),
     async (req, res) => {
@@ -7501,7 +8470,7 @@ function registerConfirmationRoutes(app) {
       try {
         const owned = await requireOwnedContract(req, res, contractId);
         if (!owned) return;
-        const result = await db.execute(sql12`
+        const result = await db.execute(sql15`
           UPDATE split_confirmations
           SET status = 'sent', sent_at = NOW(), updated_at = NOW()
           WHERE id = ${confirmId}
@@ -7536,7 +8505,7 @@ function registerConfirmationRoutes(app) {
             return;
           }
         }
-        const result = await db.execute(sql12`
+        const result = await db.execute(sql15`
           UPDATE split_confirmations
           SET status = 'revoked', revoked_at = NOW(), updated_at = NOW()
           WHERE id = ${confirmId}
@@ -7601,7 +8570,7 @@ function registerConfirmationRoutes(app) {
             return;
           }
         }
-        const rows = await db.execute(sql12`
+        const rows = await db.execute(sql15`
           SELECT sc.id, sc.token, sc.status, sc.expires_at, sc.revoked_at,
                  cc.name AS collaborator_name
           FROM split_confirmations sc
@@ -7624,7 +8593,7 @@ function registerConfirmationRoutes(app) {
         let token = row.token;
         if (rotate) {
           token = generateToken();
-          await db.execute(sql12`
+          await db.execute(sql15`
             UPDATE split_confirmations SET
               token = ${token},
               status = CASE WHEN status = 'revoked' THEN 'not_sent' ELSE status END,
@@ -7644,7 +8613,7 @@ function registerConfirmationRoutes(app) {
             req
           });
         } else {
-          await db.execute(sql12`
+          await db.execute(sql15`
             UPDATE split_confirmations SET
               qr_generated_at = NOW(),
               expires_at = COALESCE(expires_at, ${expires}),
@@ -7679,7 +8648,7 @@ function registerConfirmationRoutes(app) {
           expiresAt: expires,
           qrGeneratedAt: (/* @__PURE__ */ new Date()).toISOString(),
           rotated: rotate,
-          link: opaqueConfirmUrl(requestBaseUrl(req), token, true),
+          link: opaqueConfirmUrl(requestBaseUrl2(req), token, true),
           contributorName: row.collaborator_name,
           projectName: owned.title
         });
@@ -7722,6 +8691,258 @@ var init_confirmation_routes = __esm({
     init_confirmation_public();
     init_confirmation_url();
     init_rights_state_engine();
+    init_confirmation_dispatch();
+    init_confirmation_send();
+  }
+});
+
+// server/stripe-billing-portal.ts
+function billingPortalConfigurationParams() {
+  return {
+    business_profile: {
+      headline: "Manage your SplitSheet billing",
+      privacy_policy_url: APP_ORIGIN,
+      terms_of_service_url: APP_ORIGIN
+    },
+    features: {
+      customer_update: {
+        enabled: true,
+        allowed_updates: ["email", "address"]
+      },
+      invoice_history: { enabled: true },
+      payment_method_update: { enabled: true },
+      subscription_cancel: {
+        enabled: true,
+        mode: "at_period_end"
+      }
+    }
+  };
+}
+async function ensureBillingPortalConfiguration(stripe5) {
+  const existing = await stripe5.billingPortal.configurations.list({
+    limit: 10,
+    active: true
+  });
+  const ready = existing.data.find((c) => c.active);
+  if (ready?.id) return ready.id;
+  const created = await stripe5.billingPortal.configurations.create(
+    billingPortalConfigurationParams()
+  );
+  return created.id;
+}
+async function createBillingPortalSession(stripe5, customerId, returnUrl) {
+  const configuration = await ensureBillingPortalConfiguration(stripe5);
+  return stripe5.billingPortal.sessions.create({
+    customer: customerId,
+    return_url: returnUrl,
+    configuration
+  });
+}
+var APP_ORIGIN;
+var init_stripe_billing_portal = __esm({
+  "server/stripe-billing-portal.ts"() {
+    "use strict";
+    APP_ORIGIN = "https://splitsheet.ca";
+  }
+});
+
+// server/workspace-reset.ts
+import { sql as sql16 } from "drizzle-orm";
+async function ignoreMissing(label, fn) {
+  try {
+    await fn();
+  } catch (err) {
+    console.warn(`[workspace-reset] ${label} skipped:`, err?.message ?? err);
+  }
+}
+async function resetOperatorWorkspace(userId, stripe5) {
+  const user = await storage.getUser(userId);
+  if (!user) throw Object.assign(new Error("User not found"), { status: 404 });
+  let cancelledStripe = false;
+  if (user.stripeSubscriptionId && stripe5) {
+    try {
+      await stripe5.subscriptions.cancel(user.stripeSubscriptionId);
+      cancelledStripe = true;
+    } catch (err) {
+      console.warn("[workspace-reset] Stripe cancel skipped:", err?.message);
+    }
+  }
+  const mine = await storage.getContracts(userId);
+  const ids = mine.map((c) => c.id);
+  for (const id of ids) {
+    await ignoreMissing(
+      "signatures",
+      () => db.execute(sql16`DELETE FROM contract_signatures WHERE contract_id = ${id}`)
+    );
+    await ignoreMissing(
+      "confirmations",
+      () => db.execute(sql16`DELETE FROM split_confirmations WHERE contract_id = ${id}`)
+    );
+    await ignoreMissing(
+      "collaborators",
+      () => db.execute(sql16`DELETE FROM contract_collaborators WHERE contract_id = ${id}`)
+    );
+    await ignoreMissing(
+      "license_records",
+      () => db.execute(sql16`DELETE FROM license_records WHERE contract_id = ${id}`)
+    );
+  }
+  await ignoreMissing(
+    "ownership",
+    () => db.execute(sql16`
+      DELETE FROM ownership_records
+      WHERE asset_id IN (SELECT id FROM song_assets WHERE created_by = ${userId})
+    `)
+  );
+  await ignoreMissing(
+    "song_assets",
+    () => db.execute(sql16`DELETE FROM song_assets WHERE created_by = ${userId}`)
+  );
+  for (const id of ids) {
+    await ignoreMissing("contract", () => storage.deleteContract(id));
+  }
+  await ignoreMissing(
+    "notifications",
+    () => db.execute(sql16`DELETE FROM notifications WHERE user_id = ${userId}`)
+  );
+  await ignoreMissing(
+    "operator_clients",
+    () => db.execute(sql16`DELETE FROM operator_clients WHERE created_by = ${userId}`)
+  );
+  await storage.updateUser(userId, {
+    subscriptionTier: "free",
+    subscriptionStatus: "free",
+    stripeSubscriptionId: null
+  });
+  return { deletedProjects: ids.length, cancelledStripe };
+}
+var init_workspace_reset = __esm({
+  "server/workspace-reset.ts"() {
+    "use strict";
+    init_db();
+    init_storage();
+  }
+});
+
+// shared/plan-limits.ts
+function normalizePlanTier(tier) {
+  const t = (tier || "free").toLowerCase();
+  if (t === "starter") return "free";
+  if (t === "label") return "studio_pro";
+  return t;
+}
+function projectLimitForTier(tier) {
+  switch (normalizePlanTier(tier)) {
+    case "free":
+      return 1;
+    case "session":
+      return 5;
+    default:
+      return null;
+  }
+}
+function contributorLimitForTier(tier) {
+  switch (normalizePlanTier(tier)) {
+    case "free":
+      return 2;
+    case "session":
+      return 5;
+    default:
+      return null;
+  }
+}
+function assertUnderLimit(used, limit, noun) {
+  if (limit == null || used < limit) return { ok: true };
+  return {
+    ok: false,
+    message: `Starter / session plan limit reached (${used}/${limit} ${noun}). Upgrade to add more.`
+  };
+}
+var init_plan_limits = __esm({
+  "shared/plan-limits.ts"() {
+    "use strict";
+  }
+});
+
+// shared/workspace-analytics.ts
+function isPendingStatus(status) {
+  return status === "pending_confirmation" || status === "pending" || status === "sent";
+}
+function isConfirmedStatus(status) {
+  return status === "confirmed" || status === "signed";
+}
+function confirmationRate(confirmations2) {
+  const actionable = confirmations2.filter(
+    (c) => c.status && c.status !== "revoked" && c.status !== "not_sent"
+  );
+  if (actionable.length === 0) return 0;
+  const confirmed = actionable.filter((c) => c.status === "confirmed").length;
+  return Math.round(confirmed / actionable.length * 100);
+}
+function summarizeWorkspace(input) {
+  const projects = input.projects;
+  const drafts = projects.filter((p) => p.status === "draft").length;
+  const pending = projects.filter((p) => isPendingStatus(p.status)).length;
+  const confirmed = projects.filter((p) => isConfirmedStatus(p.status)).length;
+  const projectLimit = projectLimitForTier(input.tier);
+  const contributorLimit = contributorLimitForTier(input.tier);
+  const now = input.now ?? Date.now();
+  const monthAgo = now - 30 * 24 * 60 * 60 * 1e3;
+  const twoMonthsAgo = now - 60 * 24 * 60 * 60 * 1e3;
+  const thisMonth = projects.filter((p) => p.createdAt && new Date(p.createdAt).getTime() >= monthAgo).length;
+  const prevMonth = projects.filter((p) => {
+    if (!p.createdAt) return false;
+    const t = new Date(p.createdAt).getTime();
+    return t >= twoMonthsAgo && t < monthAgo;
+  }).length;
+  const byMonth = /* @__PURE__ */ new Map();
+  const byType = /* @__PURE__ */ new Map();
+  const byClient = /* @__PURE__ */ new Map();
+  for (const p of projects) {
+    if (p.createdAt) {
+      const key = new Date(p.createdAt).toISOString().slice(0, 7);
+      byMonth.set(key, (byMonth.get(key) ?? 0) + 1);
+    }
+    const type = p.type || "split-sheet";
+    byType.set(type, (byType.get(type) ?? 0) + 1);
+    if (p.clientId) byClient.set(p.clientId, (byClient.get(p.clientId) ?? 0) + 1);
+  }
+  const sessionsOverTime = Array.from(byMonth.entries()).sort(([a], [b]) => a.localeCompare(b)).slice(-12).map(([month, count2]) => ({ month, count: count2 }));
+  const agreementTypes = Array.from(byType.entries()).map(([type, count2]) => ({ type, count: count2 }));
+  const mostActiveClients = Array.from(byClient.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([clientId, count2]) => ({ clientId, count: count2 }));
+  return {
+    totalProjects: projects.length,
+    drafts,
+    pendingConfirmation: pending,
+    confirmed,
+    sessionsThisMonth: thisMonth,
+    sessionsVsPreviousPeriod: previousPeriodDelta(thisMonth, prevMonth),
+    averageConfirmationHours: input.averageConfirmationHours ?? null,
+    confirmationRate: confirmationRate(input.confirmations),
+    clientCount: input.clientCount,
+    contributorCount: input.contributorCount,
+    sessionsOverTime,
+    agreementTypes,
+    mostActiveClients,
+    estimatedTimeSaved: {
+      minutes: estimatedMinutesSaved(confirmed),
+      label: "Estimated time saved",
+      calculation: "25 minutes per confirmed project versus a typical email/PDF follow-up. This is an estimate, not an industry benchmark."
+    },
+    plan: {
+      tier: input.tier || "free",
+      projectLimit,
+      contributorLimit,
+      projectsUsed: projects.length,
+      contributorsUsed: input.contributorCount
+    }
+  };
+}
+var init_workspace_analytics = __esm({
+  "shared/workspace-analytics.ts"() {
+    "use strict";
+    init_plan_limits();
+    init_feature_policy();
   }
 });
 
@@ -8160,8 +9381,8 @@ var init_copilot_knowledge = __esm({
       "\u2022 **Pay-Per-Session** \u2014 $25 CAD/session: up to 5 contributors, full workflow + PDF",
       "\u2022 **Multi-Creator** \u2014 $50\u201375 CAD/project: up to 10 contributors, quote-based",
       "\u2022 **Express add-on** \u2014 +$25 CAD: priority processing per session",
-      "\u2022 **Creator Pro** \u2014 $15 CAD/month: unlimited sessions, analytics, AI assistant",
-      "\u2022 **Studio Pro** \u2014 $49 CAD/month: unlimited projects, team workspaces, bulk exports",
+      "\u2022 **Creator Pro** \u2014 $15 CAD/month or $150 CAD/year (save 2 months)",
+      "\u2022 **Studio Pro** \u2014 $49 CAD/month or $490 CAD/year (save 2 months)",
       "\u2022 **Enterprise** \u2014 custom pricing for labels, publishers, and rights organizations"
     ].join("\n");
     ACTIVE_CATEGORIES = TEMPLATE_CATEGORIES.filter((c) => !c.reserved);
@@ -8698,7 +9919,7 @@ var init_claude_service = __esm({
 });
 
 // server/copilot-routes.ts
-import { z as z3 } from "zod";
+import { z as z4 } from "zod";
 function checkRateLimit(userId) {
   const now = Date.now();
   const entry = rateLimits.get(userId);
@@ -8847,15 +10068,15 @@ var init_copilot_routes = __esm({
     init_copilot_knowledge();
     init_copilot_product_grounding();
     init_claude_service();
-    copilotSchema = z3.object({
-      messages: z3.array(
-        z3.object({
-          role: z3.enum(["user", "assistant"]),
-          content: z3.string().min(1).max(8e3)
+    copilotSchema = z4.object({
+      messages: z4.array(
+        z4.object({
+          role: z4.enum(["user", "assistant"]),
+          content: z4.string().min(1).max(8e3)
         })
       ).min(1).max(40),
-      currentPage: z3.string().max(200).optional(),
-      pageContext: z3.string().max(200).optional()
+      currentPage: z4.string().max(200).optional(),
+      pageContext: z4.string().max(200).optional()
     });
     rateLimits = /* @__PURE__ */ new Map();
   }
@@ -9893,7 +11114,7 @@ var init_pipeline = __esm({
 });
 
 // server/voice-routes.ts
-import { z as z4 } from "zod";
+import { z as z5 } from "zod";
 function checkRateLimit2(userId, max2 = 30) {
   const now = Date.now();
   const entry = rateLimits2.get(userId);
@@ -9990,36 +11211,133 @@ var init_voice_routes = __esm({
     init_pipeline();
     init_store();
     init_voice_orchestration();
-    sessionSchema = z4.object({
-      pageContext: z4.string().max(200).optional(),
-      projectId: z4.string().max(100).optional(),
-      contractId: z4.string().max(100).optional(),
-      organizationId: z4.string().max(100).optional(),
-      locale: z4.string().max(20).optional()
+    sessionSchema = z5.object({
+      pageContext: z5.string().max(200).optional(),
+      projectId: z5.string().max(100).optional(),
+      contractId: z5.string().max(100).optional(),
+      organizationId: z5.string().max(100).optional(),
+      locale: z5.string().max(20).optional()
     });
-    turnSchema = z4.object({
-      sessionId: z4.string().min(1),
-      transcript: z4.string().max(8e3).optional(),
-      audioBase64: z4.string().max(5e6).optional(),
-      mimeType: z4.string().max(100).optional()
+    turnSchema = z5.object({
+      sessionId: z5.string().min(1),
+      transcript: z5.string().max(8e3).optional(),
+      audioBase64: z5.string().max(5e6).optional(),
+      mimeType: z5.string().max(100).optional()
     });
-    confirmSchema = z4.object({
-      sessionId: z4.string().min(1),
-      pendingActionId: z4.string().min(1),
-      decision: z4.enum(["confirmed", "rejected"])
+    confirmSchema = z5.object({
+      sessionId: z5.string().min(1),
+      pendingActionId: z5.string().min(1),
+      decision: z5.enum(["confirmed", "rejected"])
     });
-    memorySchema = z4.object({
-      key: z4.string().min(1).max(80),
-      value: z4.unknown(),
-      category: z4.enum(["preference", "collaborator", "workflow", "terminology"]).optional()
+    memorySchema = z5.object({
+      key: z5.string().min(1).max(80),
+      value: z5.unknown(),
+      category: z5.enum(["preference", "collaborator", "workflow", "terminology"]).optional()
     });
     rateLimits2 = /* @__PURE__ */ new Map();
   }
 });
 
+// shared/client-profile.ts
+import { z as z6 } from "zod";
+function parseOptionalPercent(value, label) {
+  if (value === void 0 || value === null || value === "") return null;
+  const n = typeof value === "number" ? value : Number(String(value).replace(/%/g, "").trim());
+  if (!Number.isFinite(n) || n < 0 || n > 100) {
+    throw new Error(`${label} must be a number between 0 and 100.`);
+  }
+  return Math.round(n * 100) / 100;
+}
+function clientDuplicateKey(email, name) {
+  const e = (email || "").trim().toLowerCase();
+  if (e) return `email:${e}`;
+  return `name:${(name || "").trim().toLowerCase()}`;
+}
+function parseClientCsv(text2) {
+  const lines = text2.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim());
+  const errors = [];
+  const rows = [];
+  if (lines.length === 0) return { rows, errors: [{ line: 0, message: "CSV is empty." }] };
+  const header = splitCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
+  const idx = (names) => header.findIndex((h) => names.includes(h));
+  const nameI = idx(["name", "client", "full name"]);
+  if (nameI < 0) {
+    return { rows, errors: [{ line: 1, message: "CSV must include a name column." }] };
+  }
+  for (let i = 1; i < lines.length; i++) {
+    const cols = splitCsvLine(lines[i]);
+    const raw = {
+      name: cols[nameI] ?? "",
+      email: cols[idx(["email", "e-mail"])] ?? "",
+      phone: cols[idx(["phone", "telephone"])] ?? "",
+      company: cols[idx(["company", "label", "studio"])] ?? "",
+      type: cols[idx(["type", "role"])] ?? "artist",
+      role: cols[idx(["role"])] ?? void 0,
+      defaultOwnershipPercentage: cols[idx(["defaultownershippercentage", "ownership", "ip", "default ip"])] ?? "",
+      defaultRoyaltyPercentage: cols[idx(["defaultroyaltypercentage", "royalty"])] ?? "",
+      notes: cols[idx(["notes", "note"])] ?? ""
+    };
+    const parsed = clientProfileSchema.safeParse(raw);
+    if (!parsed.success) {
+      errors.push({ line: i + 1, message: parsed.error.issues[0]?.message ?? "Invalid row." });
+      continue;
+    }
+    try {
+      parseOptionalPercent(parsed.data.defaultOwnershipPercentage, "Default ownership");
+      parseOptionalPercent(parsed.data.defaultRoyaltyPercentage, "Default royalty");
+    } catch (err) {
+      errors.push({ line: i + 1, message: err.message });
+      continue;
+    }
+    rows.push(parsed.data);
+  }
+  return { rows, errors };
+}
+function splitCsvLine(line) {
+  const out = [];
+  let cur = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (quoted && line[i + 1] === '"') {
+        cur += '"';
+        i += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (ch === "," && !quoted) {
+      out.push(cur.trim());
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur.trim());
+  return out;
+}
+var emptyToUndef, clientProfileSchema;
+var init_client_profile = __esm({
+  "shared/client-profile.ts"() {
+    "use strict";
+    emptyToUndef = (v) => typeof v === "string" && v.trim() === "" ? void 0 : v;
+    clientProfileSchema = z6.object({
+      name: z6.string().trim().min(1, "Client name is required.").max(200),
+      email: z6.preprocess(emptyToUndef, z6.string().trim().email("Enter a valid email.").max(320).optional()),
+      phone: z6.preprocess(emptyToUndef, z6.string().trim().max(40).optional()),
+      company: z6.preprocess(emptyToUndef, z6.string().trim().max(200).optional()),
+      type: z6.preprocess(emptyToUndef, z6.string().trim().max(50).optional()),
+      role: z6.preprocess(emptyToUndef, z6.string().trim().max(100).optional()),
+      defaultOwnershipPercentage: z6.union([z6.string(), z6.number()]).optional(),
+      defaultRoyaltyPercentage: z6.union([z6.string(), z6.number()]).optional(),
+      notes: z6.preprocess(emptyToUndef, z6.string().trim().max(4e3).optional())
+    });
+  }
+});
+
 // server/service-routes.ts
-import { z as z5 } from "zod";
-import { sql as sql13 } from "drizzle-orm";
+import { z as z7 } from "zod";
+import { sql as sql17 } from "drizzle-orm";
 function generateToken2() {
   return generateConfirmationToken();
 }
@@ -10091,18 +11409,219 @@ async function buildClientList(userId, organizationId) {
           name: collab.name,
           email: collab.email ?? null,
           phone: null,
+          company: null,
           type: collab.role ?? "artist",
           role: collab.role,
           status: collab.status,
           notes: null,
+          defaultOwnershipPercentage: collab.ownershipPercentage != null ? Number(collab.ownershipPercentage) : null,
+          defaultRoyaltyPercentage: null,
           contractCount: 1,
           lastActivity: contract.updatedAt ?? contract.createdAt,
-          createdAt: collab.createdAt
+          createdAt: collab.createdAt,
+          source: "project"
         });
       }
     }
   }
   return Array.from(clientMap.values());
+}
+async function ensureOperatorClientsTable() {
+  await db.execute(sql17`
+    CREATE TABLE IF NOT EXISTS operator_clients (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id varchar,
+      created_by varchar NOT NULL,
+      name varchar NOT NULL,
+      email varchar,
+      phone varchar,
+      company varchar,
+      type varchar DEFAULT 'artist',
+      notes text,
+      default_ownership_percentage decimal(5, 2),
+      default_royalty_percentage decimal(5, 2),
+      created_at timestamp DEFAULT now(),
+      updated_at timestamp DEFAULT now()
+    )
+  `);
+  await db.execute(sql17`
+    ALTER TABLE operator_clients
+      ADD COLUMN IF NOT EXISTS company varchar,
+      ADD COLUMN IF NOT EXISTS default_ownership_percentage decimal(5, 2),
+      ADD COLUMN IF NOT EXISTS default_royalty_percentage decimal(5, 2);
+  `);
+  await db.execute(sql17`
+    CREATE INDEX IF NOT EXISTS idx_operator_clients_created_by ON operator_clients (created_by);
+  `);
+  await db.execute(sql17`
+    CREATE INDEX IF NOT EXISTS idx_operator_clients_created_by_email ON operator_clients (created_by, email);
+  `);
+  await db.execute(sql17`
+    CREATE INDEX IF NOT EXISTS idx_operator_clients_organization_id ON operator_clients (organization_id);
+  `);
+}
+async function listRosterClients(userId, organizationId) {
+  await ensureOperatorClientsTable();
+  const rows = organizationId ? await db.execute(sql17`
+        SELECT id, name, email, phone, company, type, notes,
+               default_ownership_percentage, default_royalty_percentage,
+               created_at, created_by
+        FROM operator_clients
+        WHERE organization_id = ${organizationId}
+        ORDER BY created_at DESC
+      `) : await db.execute(sql17`
+        SELECT id, name, email, phone, company, type, notes,
+               default_ownership_percentage, default_royalty_percentage,
+               created_at, created_by
+        FROM operator_clients
+        WHERE created_by = ${userId} AND organization_id IS NULL
+        ORDER BY created_at DESC
+      `);
+  return rows.rows.map((r) => mapRosterRow(r));
+}
+function mapRosterRow(r) {
+  return {
+    id: String(r.id),
+    name: String(r.name),
+    email: r.email ?? null,
+    phone: r.phone ?? null,
+    company: r.company ?? null,
+    type: r.type ?? "artist",
+    role: r.type ?? "artist",
+    notes: r.notes ?? null,
+    defaultOwnershipPercentage: r.default_ownership_percentage != null ? Number(r.default_ownership_percentage) : null,
+    defaultRoyaltyPercentage: r.default_royalty_percentage != null ? Number(r.default_royalty_percentage) : null,
+    contractCount: 0,
+    lastActivity: r.created_at,
+    createdAt: r.created_at,
+    source: "roster"
+  };
+}
+async function findOwnedClient(userId, organizationId, id) {
+  const roster = await listRosterClients(userId, organizationId);
+  const derived = await buildClientList(userId, organizationId);
+  return [...roster, ...derived].find((c) => c.id === id) ?? null;
+}
+function parseClientBody(body) {
+  const parsed = clientProfileSchema.safeParse(body);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid client data." };
+  }
+  try {
+    return {
+      ok: true,
+      data: {
+        name: parsed.data.name,
+        email: parsed.data.email?.trim() || null,
+        phone: parsed.data.phone?.trim() || null,
+        company: parsed.data.company?.trim() || null,
+        type: (parsed.data.role || parsed.data.type || "artist").trim(),
+        notes: parsed.data.notes?.trim() || null,
+        ownership: parseOptionalPercent(parsed.data.defaultOwnershipPercentage, "Default ownership"),
+        royalty: parseOptionalPercent(parsed.data.defaultRoyaltyPercentage, "Default royalty")
+      }
+    };
+  } catch (err) {
+    return { ok: false, message: err.message };
+  }
+}
+async function insertRosterClient(userId, organizationId, data) {
+  await ensureOperatorClientsTable();
+  const inserted = await db.execute(sql17`
+    INSERT INTO operator_clients (
+      organization_id, created_by, name, email, phone, company, type, notes,
+      default_ownership_percentage, default_royalty_percentage
+    ) VALUES (
+      ${organizationId},
+      ${userId},
+      ${data.name},
+      ${data.email},
+      ${data.phone},
+      ${data.company},
+      ${data.type},
+      ${data.notes},
+      ${data.ownership},
+      ${data.royalty}
+    )
+    RETURNING id, name, email, phone, company, type, notes,
+              default_ownership_percentage, default_royalty_percentage,
+              created_at, created_by
+  `);
+  return mapRosterRow(inserted.rows[0]);
+}
+async function updateRosterClient(userId, organizationId, id, data) {
+  await ensureOperatorClientsTable();
+  const updated = organizationId ? await db.execute(sql17`
+        UPDATE operator_clients SET
+          name = ${data.name},
+          email = ${data.email},
+          phone = ${data.phone},
+          company = ${data.company},
+          type = ${data.type},
+          notes = ${data.notes},
+          default_ownership_percentage = ${data.ownership},
+          default_royalty_percentage = ${data.royalty},
+          updated_at = now()
+        WHERE id = ${id} AND organization_id = ${organizationId}
+        RETURNING id, name, email, phone, company, type, notes,
+                  default_ownership_percentage, default_royalty_percentage,
+                  created_at, created_by
+      `) : await db.execute(sql17`
+        UPDATE operator_clients SET
+          name = ${data.name},
+          email = ${data.email},
+          phone = ${data.phone},
+          company = ${data.company},
+          type = ${data.type},
+          notes = ${data.notes},
+          default_ownership_percentage = ${data.ownership},
+          default_royalty_percentage = ${data.royalty},
+          updated_at = now()
+        WHERE id = ${id} AND created_by = ${userId} AND organization_id IS NULL
+        RETURNING id, name, email, phone, company, type, notes,
+                  default_ownership_percentage, default_royalty_percentage,
+                  created_at, created_by
+      `);
+  const row = updated.rows[0];
+  return row ? mapRosterRow(row) : null;
+}
+async function deleteRosterClient(userId, organizationId, id) {
+  await ensureOperatorClientsTable();
+  const deleted = organizationId ? await db.execute(sql17`
+        DELETE FROM operator_clients
+        WHERE id = ${id} AND organization_id = ${organizationId}
+        RETURNING id
+      `) : await db.execute(sql17`
+        DELETE FROM operator_clients
+        WHERE id = ${id} AND created_by = ${userId} AND organization_id IS NULL
+        RETURNING id
+      `);
+  return deleted.rows.length > 0;
+}
+function clientSnapshotFromRoster(client4) {
+  return {
+    id: client4.id,
+    name: client4.name,
+    email: client4.email,
+    phone: client4.phone,
+    company: client4.company,
+    type: client4.type,
+    role: client4.role,
+    notes: client4.notes,
+    defaultOwnershipPercentage: client4.defaultOwnershipPercentage,
+    defaultRoyaltyPercentage: client4.defaultRoyaltyPercentage,
+    copiedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+async function resolveOwnedRosterClient(userId, organizationId, clientId) {
+  if (!clientId) return null;
+  const roster = await listRosterClients(userId, organizationId);
+  return roster.find((c) => c.id === clientId) ?? null;
+}
+async function rosterHasDuplicate(userId, organizationId, email, name, exceptId) {
+  const roster = await listRosterClients(userId, organizationId);
+  const key = clientDuplicateKey(email, name);
+  return roster.some((c) => c.id !== exceptId && clientDuplicateKey(c.email, c.name) === key);
 }
 function registerServiceRoutes(app) {
   app.get("/api/workflow/status", isAuthenticated, async (req, res) => {
@@ -10122,16 +11641,18 @@ function registerServiceRoutes(app) {
           pendingConfirmations += 1;
         }
       }
-      const clients = await buildClientList(userId, orgId);
+      const roster = await listRosterClients(userId, orgId);
+      const derived = await buildClientList(userId, orgId);
+      const clients = roster.length + derived.length;
       res.json({
-        clients: clients.length,
+        clients,
         projects: userContracts.length,
         contributors: totalContributors,
         pendingConfirmations,
         confirmedProjects,
         stages: [
-          { id: "intake", label: "Client Intake", complete: clients.length > 0, href: "/clients" },
-          { id: "splits", label: "Split Setup", complete: userContracts.length > 0, href: "/projects" },
+          { id: "intake", label: "Project created", complete: userContracts.length > 0, href: "/projects" },
+          { id: "splits", label: "Splits set", complete: totalContributors > 0, href: "/projects" },
           { id: "confirm", label: "Confirmation", complete: pendingConfirmations > 0 || confirmedProjects > 0, href: "/projects" },
           { id: "ledger", label: "Rights Ledger", complete: confirmedProjects > 0, href: "/ownership" }
         ]
@@ -10144,17 +11665,145 @@ function registerServiceRoutes(app) {
   app.get("/api/clients", ...requireActivePermission("client.manage"), async (req, res) => {
     try {
       const userId = req.user.claims.sub;
-      res.json(await buildClientList(userId, req.orgAuth?.organizationId));
+      const orgId = req.orgAuth?.organizationId;
+      const roster = await listRosterClients(userId, orgId);
+      const derived = await buildClientList(userId, orgId);
+      const seen = new Set(
+        roster.map((c) => clientDuplicateKey(c.email, c.name)).filter(Boolean)
+      );
+      const extras = derived.filter((c) => {
+        const key = clientDuplicateKey(c.email, c.name);
+        return key && !seen.has(key);
+      });
+      const userContracts = orgId ? await storage.getContractsForOrganization(orgId, userId) : await storage.getContracts(userId);
+      const clientIdCounts = /* @__PURE__ */ new Map();
+      for (const contract of userContracts) {
+        const linked = (contract.data ?? {}).clientId;
+        if (typeof linked === "string" && linked) {
+          clientIdCounts.set(linked, (clientIdCounts.get(linked) ?? 0) + 1);
+        }
+      }
+      const merged = [...roster, ...extras].map((c) => ({
+        ...c,
+        contractCount: Math.max(Number(c.contractCount ?? 0), clientIdCounts.get(String(c.id)) ?? 0)
+      }));
+      res.json(merged);
     } catch (error) {
-      console.error("[CLIENTS LIST]", error);
+      logger.error("clients.list_failed", { error: error?.message });
       res.status(500).json({ message: "Failed to fetch clients" });
+    }
+  });
+  app.post("/api/clients", ...requireActivePermission("client.manage"), async (req, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const parsed = parseClientBody(req.body);
+      if (!parsed.ok) {
+        res.status(400).json({ message: parsed.message });
+        return;
+      }
+      const orgId = req.orgAuth?.organizationId ?? null;
+      if (await rosterHasDuplicate(userId, orgId, parsed.data.email, parsed.data.name)) {
+        res.status(409).json({ message: "A client with this email or name already exists." });
+        return;
+      }
+      const created = await insertRosterClient(userId, orgId, parsed.data);
+      logger.info("client.created", { userId, clientId: created.id });
+      res.status(201).json(created);
+    } catch (error) {
+      logger.error("clients.create_failed", { error: error?.message });
+      res.status(500).json({ message: "Failed to create client" });
+    }
+  });
+  app.post("/api/clients/import", ...requireActivePermission("client.manage"), async (req, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const orgId = req.orgAuth?.organizationId ?? null;
+      const csv = typeof req.body?.csv === "string" ? req.body.csv : "";
+      if (!csv.trim()) {
+        res.status(400).json({ message: "CSV content is required." });
+        return;
+      }
+      const { rows, errors } = parseClientCsv(csv);
+      if (rows.length > 200) {
+        res.status(400).json({ message: "CSV import is limited to 200 rows." });
+        return;
+      }
+      const created = [];
+      const skipped = [...errors];
+      const seenInFile = /* @__PURE__ */ new Set();
+      for (let i = 0; i < rows.length; i++) {
+        const parsed = parseClientBody(rows[i]);
+        if (!parsed.ok) {
+          skipped.push({ line: i + 2, message: parsed.message });
+          continue;
+        }
+        const key = clientDuplicateKey(parsed.data.email, parsed.data.name);
+        if (seenInFile.has(key)) {
+          skipped.push({ line: i + 2, message: "Duplicate row in this file." });
+          continue;
+        }
+        seenInFile.add(key);
+        if (await rosterHasDuplicate(userId, orgId, parsed.data.email, parsed.data.name)) {
+          skipped.push({ line: i + 2, message: "A client with this email or name already exists." });
+          continue;
+        }
+        created.push(await insertRosterClient(userId, orgId, parsed.data));
+      }
+      logger.info("clients.imported", { userId, created: created.length, skipped: skipped.length });
+      res.status(200).json({ created: created.length, skipped: skipped.length, clients: created, errors: skipped });
+    } catch (error) {
+      logger.error("clients.import_failed", { error: error?.message });
+      res.status(500).json({ message: "Failed to import clients" });
+    }
+  });
+  app.post("/api/clients/from-contributor", ...requireActivePermission("client.manage"), async (req, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projectId = String(req.body?.projectId ?? "").trim();
+      const contributorId = String(req.body?.contributorId ?? "").trim();
+      if (!projectId || !contributorId) {
+        res.status(400).json({ message: "projectId and contributorId are required." });
+        return;
+      }
+      const access = await assertContractAccess(req, projectId, userId);
+      if ("error" in access) {
+        res.status(access.status).json({ message: access.error });
+        return;
+      }
+      const collabs = await storage.getContractCollaborators(projectId);
+      const collab = collabs.find((c) => c.id === contributorId);
+      if (!collab) {
+        res.status(404).json({ message: "Contributor not found on this project." });
+        return;
+      }
+      const parsed = parseClientBody({
+        name: collab.name,
+        email: collab.email ?? "",
+        type: collab.role,
+        role: collab.role,
+        defaultOwnershipPercentage: collab.ownershipPercentage ?? void 0
+      });
+      if (!parsed.ok) {
+        res.status(400).json({ message: parsed.message });
+        return;
+      }
+      const orgId = req.orgAuth?.organizationId ?? null;
+      if (await rosterHasDuplicate(userId, orgId, parsed.data.email, parsed.data.name)) {
+        res.status(409).json({ message: "A client with this email or name already exists." });
+        return;
+      }
+      const created = await insertRosterClient(userId, orgId, parsed.data);
+      logger.info("client.created_from_contributor", { userId, clientId: created.id, projectId });
+      res.status(201).json(created);
+    } catch (error) {
+      logger.error("clients.from_contributor_failed", { error: error?.message });
+      res.status(500).json({ message: "Failed to save contributor as client" });
     }
   });
   app.get("/api/clients/:id", ...requireActivePermission("client.manage"), async (req, res) => {
     try {
       const userId = req.user.claims.sub;
-      const clients = await buildClientList(userId, req.orgAuth?.organizationId);
-      const client4 = clients.find((c) => c.id === req.params.id);
+      const client4 = await findOwnedClient(userId, req.orgAuth?.organizationId, req.params.id);
       if (!client4) {
         res.status(404).json({ message: "Client not found" });
         return;
@@ -10164,11 +11813,10 @@ function registerServiceRoutes(app) {
       res.status(500).json({ message: "Failed to fetch client" });
     }
   });
-  app.get("/api/clients/:id/projects", ...requireActivePermission("client.manage"), async (req, res) => {
+  const listClientProjects = async (req, res) => {
     try {
       const userId = req.user.claims.sub;
-      const clients = await buildClientList(userId, req.orgAuth?.organizationId);
-      const client4 = clients.find((c) => c.id === req.params.id);
+      const client4 = await findOwnedClient(userId, req.orgAuth?.organizationId, req.params.id);
       if (!client4) {
         res.status(404).json({ message: "Client not found" });
         return;
@@ -10178,9 +11826,10 @@ function registerServiceRoutes(app) {
       const name = client4.name;
       const projects = [];
       for (const contract of userContracts) {
+        const data = contract.data ?? {};
         const collabs = await storage.getContractCollaborators(contract.id);
-        const match = collabs.some(
-          (c) => c.id === req.params.id || c.email === email || c.name === name
+        const match = data.clientId === req.params.id || collabs.some(
+          (c) => c.id === req.params.id || !!email && c.email === email || c.name === name
         );
         if (match) projects.push(contractToProject(contract));
       }
@@ -10188,32 +11837,151 @@ function registerServiceRoutes(app) {
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch client projects" });
     }
-  });
-  app.patch("/api/clients/:id", ...requireActivePermission("client.manage"), async (req, res) => {
+  };
+  app.get("/api/clients/:id/projects", ...requireActivePermission("client.manage"), listClientProjects);
+  app.get("/api/clients/:id/sessions", ...requireActivePermission("client.manage"), listClientProjects);
+  const updateClientHandler = async (req, res) => {
     try {
-      const owned = await requireOwnedCollaborator(req, res, req.params.id);
-      if (!owned) return;
-      const { name, email, role, type } = req.body ?? {};
-      const updates = {};
-      if (name) updates.name = name;
-      if (email !== void 0) updates.email = email || null;
-      if (role || type) updates.role = role ?? type;
-      if (!Object.keys(updates).length) {
-        res.status(400).json({ message: "No updates provided" });
+      const userId = req.user.claims.sub;
+      const orgId = req.orgAuth?.organizationId ?? null;
+      const roster = await listRosterClients(userId, orgId);
+      const existing = roster.find((c) => c.id === req.params.id);
+      if (!existing) {
+        const derived = await findOwnedClient(userId, orgId, req.params.id);
+        if (derived) {
+          res.status(400).json({
+            message: "This person is on a project. Save them as a client profile to edit reusable details without changing existing rights."
+          });
+          return;
+        }
+        res.status(404).json({ message: "Client not found" });
         return;
       }
-      const updated = await storage.updateContractCollaborator(req.params.id, updates);
-      res.json({
-        id: updated.id,
-        name: updated.name,
-        email: updated.email,
-        phone: null,
-        type: updated.role,
-        notes: null,
-        createdAt: updated.createdAt
-      });
+      const merged = {
+        name: req.body?.name ?? existing.name,
+        email: req.body?.email === void 0 ? existing.email : req.body.email,
+        phone: req.body?.phone === void 0 ? existing.phone : req.body.phone,
+        company: req.body?.company === void 0 ? existing.company : req.body.company,
+        type: req.body?.type ?? req.body?.role ?? existing.type,
+        role: req.body?.role ?? req.body?.type ?? existing.role,
+        notes: req.body?.notes === void 0 ? existing.notes : req.body.notes,
+        defaultOwnershipPercentage: req.body?.defaultOwnershipPercentage === void 0 ? existing.defaultOwnershipPercentage : req.body.defaultOwnershipPercentage,
+        defaultRoyaltyPercentage: req.body?.defaultRoyaltyPercentage === void 0 ? existing.defaultRoyaltyPercentage : req.body.defaultRoyaltyPercentage
+      };
+      const parsed = parseClientBody(merged);
+      if (!parsed.ok) {
+        res.status(400).json({ message: parsed.message });
+        return;
+      }
+      if (await rosterHasDuplicate(userId, orgId, parsed.data.email, parsed.data.name, existing.id)) {
+        res.status(409).json({ message: "A client with this email or name already exists." });
+        return;
+      }
+      const updated = await updateRosterClient(userId, orgId, existing.id, parsed.data);
+      if (!updated) {
+        res.status(404).json({ message: "Client not found" });
+        return;
+      }
+      logger.info("client.updated", { userId, clientId: updated.id });
+      res.json(updated);
     } catch (error) {
+      logger.error("clients.update_failed", { error: error?.message });
       res.status(500).json({ message: "Failed to update client" });
+    }
+  };
+  app.patch("/api/clients/:id", ...requireActivePermission("client.manage"), updateClientHandler);
+  app.put("/api/clients/:id", ...requireActivePermission("client.manage"), updateClientHandler);
+  app.delete("/api/clients/:id", ...requireActivePermission("client.manage"), async (req, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const orgId = req.orgAuth?.organizationId ?? null;
+      const roster = await listRosterClients(userId, orgId);
+      const existing = roster.find((c) => c.id === req.params.id);
+      if (!existing) {
+        const derived = await findOwnedClient(userId, orgId, req.params.id);
+        if (derived) {
+          res.status(400).json({
+            message: "Project contributors cannot be deleted from Clients. Remove them from the project instead."
+          });
+          return;
+        }
+        res.status(404).json({ message: "Client not found" });
+        return;
+      }
+      const removed = await deleteRosterClient(userId, orgId, existing.id);
+      if (!removed) {
+        res.status(404).json({ message: "Client not found" });
+        return;
+      }
+      logger.info("client.deleted", { userId, clientId: existing.id });
+      res.json({ success: true });
+    } catch (error) {
+      logger.error("clients.delete_failed", { error: error?.message });
+      res.status(500).json({ message: "Failed to delete client" });
+    }
+  });
+  app.post("/api/projects", ...requireActivePermission("project.create"), async (req, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const title = String(req.body?.title ?? req.body?.songTitle ?? "").trim();
+      if (!title) {
+        res.status(400).json({ message: "Project title is required." });
+        return;
+      }
+      const user = await storage.getUser(userId);
+      const existing = req.orgAuth?.organizationId ? await storage.getContractsForOrganization(req.orgAuth.organizationId, userId) : await storage.getContracts(userId);
+      const limit = projectLimitForTier(user?.subscriptionTier);
+      const gate = assertUnderLimit(existing.length, limit, "projects");
+      if (!gate.ok) {
+        res.status(402).json({ message: gate.message, code: "PLAN_LIMIT" });
+        return;
+      }
+      const requestedClientId = typeof req.body?.clientId === "string" ? req.body.clientId.trim() : "";
+      let rosterClient = null;
+      if (requestedClientId) {
+        rosterClient = await resolveOwnedRosterClient(userId, req.orgAuth?.organizationId, requestedClientId);
+        if (!rosterClient) {
+          res.status(403).json({ message: "Client not found or not authorized." });
+          return;
+        }
+      }
+      const snapshot = rosterClient ? clientSnapshotFromRoster(rosterClient) : null;
+      const created = await storage.createContract({
+        title,
+        type: "split-sheet",
+        status: "draft",
+        createdBy: userId,
+        organizationId: req.orgAuth?.organizationId ?? null,
+        data: {
+          songTitle: String(req.body?.songTitle ?? title).trim(),
+          notes: String(req.body?.notes ?? "").trim() || null,
+          clientId: rosterClient?.id ?? null,
+          clientSnapshot: snapshot
+        }
+      });
+      const seedContributor = req.body?.seedContributor !== false;
+      if (rosterClient && seedContributor) {
+        try {
+          const ownership = rosterClient.defaultOwnershipPercentage != null ? String(rosterClient.defaultOwnershipPercentage) : "100";
+          await storage.addContractCollaborator({
+            contractId: created.id,
+            name: rosterClient.name,
+            email: rosterClient.email,
+            role: rosterClient.role || rosterClient.type || "artist",
+            ownershipPercentage: ownership,
+            status: "pending"
+          });
+        } catch (seedErr) {
+          logger.error("projects.seed_contributor_failed", {
+            projectId: created.id,
+            error: seedErr?.message
+          });
+        }
+      }
+      res.status(201).json(contractToProject(created));
+    } catch (error) {
+      console.error("[PROJECTS CREATE]", error);
+      res.status(500).json({ message: "Failed to create project" });
     }
   });
   app.get("/api/projects", ...requireActivePermission("project.read"), async (req, res) => {
@@ -10263,7 +12031,24 @@ function registerServiceRoutes(app) {
       const data = { ...result.contract.data };
       if (songTitle !== void 0) data.songTitle = songTitle;
       if (notes !== void 0) data.notes = notes;
-      if (clientId !== void 0) data.clientId = clientId;
+      if (clientId !== void 0) {
+        const nextId = typeof clientId === "string" && clientId.trim() ? clientId.trim() : null;
+        if (nextId) {
+          const rosterClient = await resolveOwnedRosterClient(
+            req.user.claims.sub,
+            req.orgAuth?.organizationId,
+            nextId
+          );
+          if (!rosterClient) {
+            res.status(403).json({ message: "Client not found or not authorized." });
+            return;
+          }
+          data.clientId = rosterClient.id;
+          data.clientSnapshot = clientSnapshotFromRoster(rosterClient);
+        } else {
+          data.clientId = null;
+        }
+      }
       const updates = { data };
       if (title) updates.title = title;
       if (status) updates.status = contractStatusFromProject(status);
@@ -10283,7 +12068,7 @@ function registerServiceRoutes(app) {
       const collabs = await storage.getContractCollaborators(req.params.id);
       const enriched = await Promise.all(
         collabs.map(async (c) => {
-          const confRows = await db.execute(sql13`
+          const confRows = await db.execute(sql17`
             SELECT token, status, confirmed_at, expires_at
             FROM split_confirmations
             WHERE contract_id = ${req.params.id} AND collaborator_id = ${c.id}
@@ -10323,6 +12108,14 @@ function registerServiceRoutes(app) {
       const result = await assertContractAccess(req, req.params.id, req.user.claims.sub);
       if ("error" in result) {
         res.status(result.status).json({ message: result.error });
+        return;
+      }
+      const operator = await storage.getUser(req.user.claims.sub);
+      const existingCollabs = await storage.getContractCollaborators(req.params.id);
+      const contribLimit = contributorLimitForTier(operator?.subscriptionTier);
+      const contribGate = assertUnderLimit(existingCollabs.length, contribLimit, "contributors");
+      if (!contribGate.ok) {
+        res.status(402).json({ message: contribGate.message, code: "PLAN_LIMIT" });
         return;
       }
       const { name, email, role, pro, ipi, ownershipPercentage } = parsed.data;
@@ -10400,6 +12193,91 @@ function registerServiceRoutes(app) {
       res.status(500).json({ message: "Failed to remove contributor" });
     }
   });
+  const bulkDispatch = (mode) => async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const parsed = parseBulkProjectIds(req.body);
+      if (!parsed.ok) {
+        res.status(400).json({ message: parsed.message });
+        return;
+      }
+      const remainingEmails = { value: MAX_EMAILS_PER_REQUEST };
+      const startedAt = Date.now();
+      const projects = [];
+      for (const id of parsed.ids) {
+        const access = await assertContractAccess(req, id, userId);
+        if ("error" in access) {
+          projects.push({
+            projectId: id,
+            title: "",
+            ok: false,
+            skipped: true,
+            code: access.status === 404 ? "not_found" : "unauthorized",
+            message: access.error,
+            recipients: []
+          });
+          continue;
+        }
+        projects.push(await dispatchPendingConfirmations({
+          mode,
+          contract: access.contract,
+          userId,
+          req,
+          remainingEmails,
+          startedAt
+        }));
+      }
+      const summary = summarizeDispatch(projects);
+      logger.info(mode === "remind" ? "confirmation.bulk_remind" : "confirmation.bulk_send", {
+        userId,
+        mode,
+        projects: parsed.ids.length,
+        sent: summary.sent,
+        failed: summary.failed,
+        skipped: summary.skipped
+      });
+      res.json(summary);
+    } catch (error) {
+      logger.error("confirmation.bulk_send_failed", { error: error?.message, mode });
+      res.status(500).json({ message: "Failed to send confirmations" });
+    }
+  };
+  const resendOne = async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const access = await assertContractAccess(req, req.params.id, userId);
+      if ("error" in access) {
+        res.status(access.status).json({ message: access.error });
+        return;
+      }
+      const project = await dispatchPendingConfirmations({
+        mode: "resend",
+        contract: access.contract,
+        userId,
+        req,
+        remainingEmails: { value: MAX_EMAILS_PER_REQUEST },
+        startedAt: Date.now()
+      });
+      const summary = summarizeDispatch([project]);
+      logger.info("confirmation.resend", {
+        userId,
+        projectId: req.params.id,
+        sent: summary.sent,
+        failed: summary.failed,
+        skipped: summary.skipped
+      });
+      res.json(summary);
+    } catch (error) {
+      logger.error("confirmation.resend_failed", { error: error?.message });
+      res.status(500).json({ message: "Failed to resend confirmations" });
+    }
+  };
+  app.post("/api/projects/bulk-send", ...requireActivePermission("agreement.send"), bulkDispatch("send"));
+  app.post("/api/sessions/bulk-send", ...requireActivePermission("agreement.send"), bulkDispatch("send"));
+  app.post("/api/projects/bulk-remind", ...requireActivePermission("agreement.send"), bulkDispatch("remind"));
+  app.post("/api/sessions/bulk-remind", ...requireActivePermission("agreement.send"), bulkDispatch("remind"));
+  app.post("/api/projects/:id/resend", ...requireActivePermission("agreement.send"), resendOne);
+  app.post("/api/sessions/:id/resend", ...requireActivePermission("agreement.send"), resendOne);
   app.post("/api/projects/:id/send-confirmations", ...requireActivePermission("agreement.send"), async (req, res) => {
     const contractId = req.params.id;
     const userId = req.user?.claims?.sub;
@@ -10447,7 +12325,7 @@ function registerServiceRoutes(app) {
       const baseUrl = process.env.APP_URL ?? `${req.protocol}://${req.get("host")}`;
       const links = [];
       for (const collab of collabs) {
-        const existing = await db.execute(sql13`
+        const existing = await db.execute(sql17`
           SELECT id, token, status FROM split_confirmations
           WHERE contract_id = ${contractId} AND collaborator_id = ${collab.id}
           LIMIT 1
@@ -10456,12 +12334,12 @@ function registerServiceRoutes(app) {
         if (existing.rows.length > 0) {
           const row = existing.rows[0];
           token = row.token;
-          await db.execute(sql13`
+          await db.execute(sql17`
             UPDATE split_confirmations SET expires_at = ${expires}, updated_at = NOW() WHERE id = ${row.id}
           `);
         } else {
           token = generateToken2();
-          await db.execute(sql13`
+          await db.execute(sql17`
             INSERT INTO split_confirmations (contract_id, collaborator_id, token, status, expires_at)
             VALUES (${contractId}, ${collab.id}, ${token}, 'not_sent', ${expires})
           `);
@@ -10538,13 +12416,18 @@ var init_service_routes = __esm({
     init_confirmation_url();
     init_rights_state_engine();
     init_split_validation();
-    contributorSchema = z5.object({
-      name: z5.string().min(1).max(200),
-      email: z5.string().email().optional().or(z5.literal("")),
-      role: z5.string().min(1).max(100),
-      pro: z5.string().max(50).optional(),
-      ipi: z5.string().max(20).optional(),
-      ownershipPercentage: z5.union([z5.string(), z5.number()])
+    init_plan_limits();
+    init_client_profile();
+    init_logger();
+    init_confirmation_send();
+    init_confirmation_dispatch();
+    contributorSchema = z7.object({
+      name: z7.string().min(1).max(200),
+      email: z7.string().email().optional().or(z7.literal("")),
+      role: z7.string().min(1).max(100),
+      pro: z7.string().max(50).optional(),
+      ipi: z7.string().max(20).optional(),
+      ownershipPercentage: z7.union([z7.string(), z7.number()])
     });
   }
 });
@@ -10604,7 +12487,7 @@ var init_mfa_policy = __esm({
 });
 
 // server/organization-routes.ts
-import { z as z6 } from "zod";
+import { z as z8 } from "zod";
 import crypto5 from "crypto";
 async function generateUniqueSlOrgId2() {
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -10620,7 +12503,8 @@ function registerOrganizationRoutes(app) {
     const userId = req.user.claims.sub;
     try {
       await ensurePersonalOrganization(userId);
-      const orgs = await storage.getOrganizationsForUser(userId);
+      const { isPersonalWorkspaceOrg: isPersonalWorkspaceOrg2 } = await Promise.resolve().then(() => (init_feature_policy(), feature_policy_exports));
+      const orgs = (await storage.getOrganizationsForUser(userId)).filter((org) => !isPersonalWorkspaceOrg2(org));
       res.json(orgs);
     } catch (error) {
       console.error("[ORG LIST ERROR]", error);
@@ -10666,7 +12550,7 @@ function registerOrganizationRoutes(app) {
   app.post("/api/organizations", requireAuth, async (req, res) => {
     const userId = req.user.claims.sub;
     try {
-      const body = insertOrganizationSchema.pick({ name: true, type: true, email: true, website: true, country: true }).extend({ type: z6.enum(ORGANIZATION_TYPES) }).parse(req.body);
+      const body = insertOrganizationSchema.pick({ name: true, type: true, email: true, website: true, country: true }).extend({ type: z8.enum(ORGANIZATION_TYPES) }).parse(req.body);
       const slOrgId = await generateUniqueSlOrgId2();
       const org = await storage.createOrganization({
         ...body,
@@ -10689,7 +12573,7 @@ function registerOrganizationRoutes(app) {
       });
       res.status(201).json(org);
     } catch (error) {
-      if (error instanceof z6.ZodError) {
+      if (error instanceof z8.ZodError) {
         res.status(400).json({ message: "Validation failed", issues: error.errors });
       } else {
         console.error("[ORG CREATE ERROR]", error);
@@ -10718,7 +12602,7 @@ function registerOrganizationRoutes(app) {
         const updated = await storage.updateOrganization(req.params.id, updates);
         res.json(updated);
       } catch (error) {
-        if (error instanceof z6.ZodError) {
+        if (error instanceof z8.ZodError) {
           res.status(400).json({ message: "Validation failed", issues: error.errors });
         } else {
           console.error("[ORG UPDATE ERROR]", error);
@@ -10745,9 +12629,9 @@ function registerOrganizationRoutes(app) {
     async (req, res) => {
       const actingUserId = req.user.claims.sub;
       try {
-        const body = z6.object({
-          userId: z6.string().min(1),
-          role: z6.enum(ORGANIZATION_ROLES).default("operator")
+        const body = z8.object({
+          userId: z8.string().min(1),
+          role: z8.enum(ORGANIZATION_ROLES).default("operator")
         }).parse(req.body);
         const role = normalizeOrgRole(body.role) || "operator";
         const existing = await storage.getOrganizationMember(req.params.id, body.userId);
@@ -10771,7 +12655,7 @@ function registerOrganizationRoutes(app) {
         });
         res.status(201).json(member);
       } catch (error) {
-        if (error instanceof z6.ZodError) {
+        if (error instanceof z8.ZodError) {
           res.status(400).json({ message: "Validation failed", issues: error.errors });
         } else {
           console.error("[ORG MEMBER ADD ERROR]", error);
@@ -10788,7 +12672,7 @@ function registerOrganizationRoutes(app) {
     requireMfaForPrivilegedOrgRoles("owner"),
     async (req, res) => {
       try {
-        const { role: rawRole } = z6.object({ role: z6.enum(ORGANIZATION_ROLES) }).parse(req.body);
+        const { role: rawRole } = z8.object({ role: z8.enum(ORGANIZATION_ROLES) }).parse(req.body);
         const role = normalizeOrgRole(rawRole);
         if (!role) {
           res.status(400).json({ message: "Invalid role" });
@@ -10797,7 +12681,7 @@ function registerOrganizationRoutes(app) {
         const updated = await storage.updateOrganizationMemberRole(req.params.memberId, role);
         res.json(updated);
       } catch (error) {
-        if (error instanceof z6.ZodError) {
+        if (error instanceof z8.ZodError) {
           res.status(400).json({ message: "Validation failed", issues: error.errors });
         } else {
           console.error("[ORG MEMBER ROLE ERROR]", error);
@@ -10845,9 +12729,9 @@ function registerOrganizationRoutes(app) {
     async (req, res) => {
       const userId = req.user.claims.sub;
       try {
-        const body = z6.object({
-          name: z6.string().min(1).max(100),
-          scopes: z6.array(z6.string()).min(1)
+        const body = z8.object({
+          name: z8.string().min(1).max(100),
+          scopes: z8.array(z8.string()).min(1)
         }).parse(req.body);
         const { raw, hash, prefix } = generateApiKey();
         const key = await storage.createOrganizationApiKey({
@@ -10869,7 +12753,7 @@ function registerOrganizationRoutes(app) {
         const { keyHash, ...safeKey } = key;
         res.status(201).json({ ...safeKey, rawKey: raw });
       } catch (error) {
-        if (error instanceof z6.ZodError) {
+        if (error instanceof z8.ZodError) {
           res.status(400).json({ message: "Validation failed", issues: error.errors });
         } else {
           console.error("[ORG API KEY CREATE ERROR]", error);
@@ -10947,7 +12831,7 @@ var init_enterprise_stubs = __esm({
 });
 
 // server/message-routes.ts
-import { z as z7 } from "zod";
+import { z as z9 } from "zod";
 function messageRateLimit(maxRequests, windowMs) {
   return (req, res, next) => {
     const userId = req.user?.claims?.sub;
@@ -11068,7 +12952,7 @@ function registerMessageRoutes(app) {
         );
         res.status(201).json(message);
       } catch (error) {
-        if (error instanceof z7.ZodError) {
+        if (error instanceof z9.ZodError) {
           res.status(400).json({ message: "Invalid message", errors: error.errors });
           return;
         }
@@ -11101,20 +12985,20 @@ var init_message_routes = __esm({
     init_replitAuth();
     init_security();
     rateLimitStore = /* @__PURE__ */ new Map();
-    sendMessageSchema = z7.object({
-      receiverId: z7.string().min(1),
-      content: z7.string().min(1).max(5e3),
-      messageType: z7.enum(["text", "image", "file"]).optional().default("text")
+    sendMessageSchema = z9.object({
+      receiverId: z9.string().min(1),
+      content: z9.string().min(1).max(5e3),
+      messageType: z9.enum(["text", "image", "file"]).optional().default("text")
     });
   }
 });
 
 // server/stripe-connect.ts
 import Stripe from "stripe";
-import { sql as sql14 } from "drizzle-orm";
+import { sql as sql18 } from "drizzle-orm";
 async function createConnectAccount(req, res) {
   const userId = req.user?.claims?.sub;
-  const rows = await db.execute(sql14`
+  const rows = await db.execute(sql18`
     SELECT id, email, first_name, last_name,
            stripe_connect_account_id,
            stripe_connect_onboarded
@@ -11153,7 +13037,7 @@ async function createConnectAccount(req, res) {
       metadata: { splitsheet_user_id: userId }
     });
     accountId = account.id;
-    await db.execute(sql14`
+    await db.execute(sql18`
       UPDATE users
       SET stripe_connect_account_id = ${accountId},
           stripe_connect_onboarded  = FALSE
@@ -11175,7 +13059,7 @@ async function createConnectAccount(req, res) {
 }
 async function getConnectStatus(req, res) {
   const userId = req.user?.claims?.sub;
-  const rows = await db.execute(sql14`
+  const rows = await db.execute(sql18`
     SELECT stripe_connect_account_id, stripe_connect_onboarded,
            stripe_connect_charges_enabled, stripe_connect_payouts_enabled
     FROM users WHERE id = ${userId} LIMIT 1
@@ -11189,7 +13073,7 @@ async function getConnectStatus(req, res) {
   const onboarded = account.details_submitted;
   const chargesEnabled = account.charges_enabled;
   const payoutsEnabled = account.payouts_enabled;
-  await db.execute(sql14`
+  await db.execute(sql18`
     UPDATE users SET
       stripe_connect_onboarded        = ${onboarded},
       stripe_connect_charges_enabled  = ${chargesEnabled},
@@ -11208,7 +13092,7 @@ async function getConnectStatus(req, res) {
 }
 async function getConnectDashboardLink(req, res) {
   const userId = req.user?.claims?.sub;
-  const rows = await db.execute(sql14`
+  const rows = await db.execute(sql18`
     SELECT stripe_connect_account_id, stripe_connect_onboarded
     FROM users WHERE id = ${userId} LIMIT 1
   `);
@@ -11234,7 +13118,7 @@ var init_stripe_connect = __esm({
 
 // server/payment-service.ts
 import Stripe2 from "stripe";
-import { sql as sql15 } from "drizzle-orm";
+import { sql as sql19 } from "drizzle-orm";
 function calculateSplits(totalCents, collaborators) {
   const total = collaborators.reduce((s, c) => s + c.ownershipPct, 0);
   if (Math.abs(total - 100) > 0.01) {
@@ -11260,7 +13144,7 @@ function deductPlatformFee(grossCents, feeBps = PLATFORM_FEE_BPS) {
   return { netCents: grossCents - feeCents, feeCents };
 }
 async function enforceAgreement(contractId) {
-  const rows = await db.execute(sql15`
+  const rows = await db.execute(sql19`
     SELECT status, data
     FROM contracts WHERE id = ${contractId} LIMIT 1
   `);
@@ -11272,7 +13156,7 @@ async function enforceAgreement(contractId) {
       reason: `Contract must be signed before payment. Current status: ${contract.status}`
     };
   }
-  const sigRows = await db.execute(sql15`
+  const sigRows = await db.execute(sql19`
     SELECT cc.id, cc.email, cc.name,
            COUNT(cs.id) AS sig_count
     FROM contract_collaborators cc
@@ -11290,7 +13174,7 @@ async function enforceAgreement(contractId) {
   return { allowed: true };
 }
 async function resolvePayees(contractId) {
-  const rows = await db.execute(sql15`
+  const rows = await db.execute(sql19`
     SELECT
       cc.id, cc.name, cc.email,
       cc.ownership_percentage::float AS ownership_pct,
@@ -11331,7 +13215,7 @@ async function createSplitPaymentIntent(params) {
     throw new Error(`Payment blocked: ${enforcement.reason}`);
   }
   const { netCents, feeCents } = deductPlatformFee(grossCents);
-  const revenueResult = await db.execute(sql15`
+  const revenueResult = await db.execute(sql19`
     INSERT INTO revenue_events
       (asset_id, source, amount, currency, description, metadata)
     VALUES
@@ -11357,7 +13241,7 @@ async function createSplitPaymentIntent(params) {
     },
     { idempotencyKey }
   );
-  await db.execute(sql15`
+  await db.execute(sql19`
     UPDATE revenue_events
     SET metadata = metadata || ${{ stripePaymentIntentId: intent.id }}::jsonb
     WHERE id = ${revenueEventId}
@@ -11398,7 +13282,7 @@ async function executeSplits(params) {
         },
         { idempotencyKey }
       );
-      await db.execute(sql15`
+      await db.execute(sql19`
         INSERT INTO payout_records
           (revenue_event_id, user_id, asset_id, ownership_percentage,
            amount, currency, status, stripe_transfer_id, processed_at)
@@ -11410,7 +13294,7 @@ async function executeSplits(params) {
         FROM revenue_events re WHERE re.id = ${revenueEventId}
         ON CONFLICT DO NOTHING
       `);
-      await db.execute(sql15`
+      await db.execute(sql19`
         INSERT INTO user_balances (user_id, total_earned, total_paid, pending_balance, currency)
         VALUES (${split.userId}, ${fromCents(split.cents)}, ${fromCents(split.cents)}, '0', ${currency})
         ON CONFLICT (user_id) DO UPDATE SET
@@ -11422,7 +13306,7 @@ async function executeSplits(params) {
       log("TRANSFER_SUCCESS", { userId: split.userId, cents: split.cents, transferId: transfer.id });
     } catch (err) {
       log("TRANSFER_FAILED", { userId: split.userId, cents: split.cents, error: err.message });
-      await db.execute(sql15`
+      await db.execute(sql19`
         INSERT INTO payout_records
           (revenue_event_id, user_id, asset_id, ownership_percentage,
            amount, currency, status)
@@ -11469,12 +13353,12 @@ function scheduleRetry(job) {
         },
         { idempotencyKey: `${job.idempotencyKey}-retry-${job.attempt}` }
       );
-      await db.execute(sql15`
+      await db.execute(sql19`
         UPDATE payout_records
         SET status = 'completed', stripe_transfer_id = ${transfer.id}, processed_at = NOW()
         WHERE revenue_event_id = ${job.revenueEventId} AND user_id = ${job.userId}
       `);
-      await db.execute(sql15`
+      await db.execute(sql19`
         INSERT INTO user_balances (user_id, total_earned, total_paid, pending_balance, currency)
         VALUES (${job.userId}, ${fromCents(job.cents)}, ${fromCents(job.cents)}, '0', ${job.currency})
         ON CONFLICT (user_id) DO UPDATE SET
@@ -11517,8 +13401,8 @@ var init_payment_service = __esm({
 // server/payment-routes.ts
 import express from "express";
 import Stripe3 from "stripe";
-import { z as z8 } from "zod";
-import { sql as sql16 } from "drizzle-orm";
+import { z as z10 } from "zod";
+import { sql as sql20 } from "drizzle-orm";
 function uid(req) {
   return req.user?.claims?.sub ?? "";
 }
@@ -11566,7 +13450,7 @@ function registerPaymentRoutes(app) {
       });
       res.status(201).json(result);
     } catch (err) {
-      if (err instanceof z8.ZodError) {
+      if (err instanceof z10.ZodError) {
         return res.status(400).json({ error: "Validation failed", issues: err.errors });
       }
       console.error("[PAYMENT INTENT]", err.message);
@@ -11594,7 +13478,7 @@ function registerPaymentRoutes(app) {
       });
       res.json(result);
     } catch (err) {
-      if (err instanceof z8.ZodError) {
+      if (err instanceof z10.ZodError) {
         return res.status(400).json({ error: "Validation failed", issues: err.errors });
       }
       console.error("[EXECUTE SPLITS]", err.message);
@@ -11605,7 +13489,7 @@ function registerPaymentRoutes(app) {
     const userId = uid(req);
     const limit = Math.min(Number(req.query.limit ?? 50), 200);
     const offset = Number(req.query.offset ?? 0);
-    const rows = await db.execute(sql16`
+    const rows = await db.execute(sql20`
       SELECT
         pr.id                  AS payout_id,
         pr.amount,
@@ -11628,7 +13512,7 @@ function registerPaymentRoutes(app) {
       ORDER BY pr.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `);
-    const initiated = await db.execute(sql16`
+    const initiated = await db.execute(sql20`
       SELECT
         re.id,
         re.source,
@@ -11654,7 +13538,7 @@ function registerPaymentRoutes(app) {
   });
   app.get("/api/payments/balance", ...requireActiveOrg(), async (req, res) => {
     const userId = uid(req);
-    const rows = await db.execute(sql16`
+    const rows = await db.execute(sql20`
       SELECT
         ub.total_earned,
         ub.total_paid,
@@ -11694,7 +13578,7 @@ function registerPaymentRoutes(app) {
     const userId = uid(req);
     try {
       const { revenueEventId, reason } = refundSchema.parse(req.body);
-      const reRows = await db.execute(sql16`
+      const reRows = await db.execute(sql20`
         SELECT re.*, re.metadata->>'stripePaymentIntentId' AS payment_intent_id
         FROM revenue_events re
         WHERE re.id = ${revenueEventId}
@@ -11708,7 +13592,7 @@ function registerPaymentRoutes(app) {
       if (!event.payment_intent_id) {
         return res.status(400).json({ error: "No Stripe PaymentIntent found for this event" });
       }
-      const payoutRows = await db.execute(sql16`
+      const payoutRows = await db.execute(sql20`
         SELECT stripe_transfer_id, user_id, amount
         FROM payout_records
         WHERE revenue_event_id = ${revenueEventId}
@@ -11725,11 +13609,11 @@ function registerPaymentRoutes(app) {
             }
           );
           reversals.push(reversal.id);
-          await db.execute(sql16`
+          await db.execute(sql20`
             UPDATE payout_records SET status = 'refunded'
             WHERE stripe_transfer_id = ${payout.stripe_transfer_id}
           `);
-          await db.execute(sql16`
+          await db.execute(sql20`
             UPDATE user_balances SET
               total_earned = total_earned - ${payout.amount}::decimal,
               total_paid   = total_paid   - ${payout.amount}::decimal,
@@ -11758,7 +13642,7 @@ function registerPaymentRoutes(app) {
         message: `Refunded ${reversals.length} transfers + original charge`
       });
     } catch (err) {
-      if (err instanceof z8.ZodError) {
+      if (err instanceof z10.ZodError) {
         return res.status(400).json({ error: "Validation failed", issues: err.errors });
       }
       console.error("[REFUND ERROR]", err.message);
@@ -11783,12 +13667,12 @@ function registerPaymentRoutes(app) {
         console.error("[WEBHOOK] Signature verification failed:", err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);
       }
-      const idempotencyRows = await db.execute(sql16`
+      const idempotencyRows = await db.execute(sql20`
         SELECT 1 FROM payment_events
         WHERE stripe_event_id = ${event.id} LIMIT 1
       `).catch(() => ({ rows: [] }));
       const alreadyProcessed2 = (idempotencyRows.rows?.length ?? 0) > 0;
-      await db.execute(sql16`
+      await db.execute(sql20`
         INSERT INTO payment_events
           (stripe_event_id, event_type, payload, processed)
         VALUES
@@ -11823,7 +13707,7 @@ function registerPaymentRoutes(app) {
           case "transfer.created": {
             const transfer = event.data.object;
             console.log(`[WEBHOOK] Transfer created: ${transfer.id} \u2192 ${transfer.destination}`);
-            await db.execute(sql16`
+            await db.execute(sql20`
               UPDATE payout_records SET status = 'processing'
               WHERE stripe_transfer_id = ${transfer.id}
             `).catch(() => {
@@ -11834,7 +13718,7 @@ function registerPaymentRoutes(app) {
           case "transfer.failed": {
             const transfer = event.data.object;
             console.error(`[WEBHOOK] Transfer failed: ${transfer.id}`);
-            await db.execute(sql16`
+            await db.execute(sql20`
               UPDATE payout_records SET status = 'failed'
               WHERE stripe_transfer_id = ${transfer.id}
             `).catch(() => {
@@ -11845,7 +13729,7 @@ function registerPaymentRoutes(app) {
           case "payout.paid": {
             const payout = event.data.object;
             console.log(`[WEBHOOK] Payout paid: ${payout.id}`);
-            await db.execute(sql16`
+            await db.execute(sql20`
               UPDATE payout_records SET status = 'completed', processed_at = NOW()
               WHERE stripe_transfer_id = ${payout.id}
                  OR stripe_transfer_id IN (
@@ -11861,7 +13745,7 @@ function registerPaymentRoutes(app) {
           case "payout.failed": {
             const payout = event.data.object;
             console.error(`[WEBHOOK] Payout failed: ${payout.id} \u2014 ${payout.failure_message}`);
-            await db.execute(sql16`
+            await db.execute(sql20`
               UPDATE payout_records SET status = 'failed'
               WHERE stripe_transfer_id = ${payout.id}
             `).catch(() => {
@@ -11871,7 +13755,7 @@ function registerPaymentRoutes(app) {
           // ── Account updated → sync onboarding status ─────────────────────
           case "account.updated": {
             const account = event.data.object;
-            await db.execute(sql16`
+            await db.execute(sql20`
               UPDATE users SET
                 stripe_connect_onboarded        = ${account.details_submitted},
                 stripe_connect_charges_enabled  = ${account.charges_enabled},
@@ -11885,7 +13769,7 @@ function registerPaymentRoutes(app) {
           default:
             console.log(`[WEBHOOK] Unhandled event: ${event.type}`);
         }
-        await db.execute(sql16`
+        await db.execute(sql20`
           UPDATE payment_events SET processed = TRUE
           WHERE stripe_event_id = ${event.id}
         `).catch(() => {
@@ -11909,62 +13793,31 @@ var init_payment_routes = __esm({
     stripe3 = new Stripe3(process.env.STRIPE_SECRET_KEY ?? "", {
       apiVersion: "2025-08-27.basil"
     });
-    createPaymentSchema = z8.object({
-      contractId: z8.string().uuid(),
-      assetId: z8.string().uuid(),
-      source: z8.enum(["streaming", "sync", "performance", "mechanical", "other"]),
-      grossAmount: z8.number().positive().max(1e7),
-      currency: z8.string().length(3).default("CAD"),
-      description: z8.string().min(3).max(500)
+    createPaymentSchema = z10.object({
+      contractId: z10.string().uuid(),
+      assetId: z10.string().uuid(),
+      source: z10.enum(["streaming", "sync", "performance", "mechanical", "other"]),
+      grossAmount: z10.number().positive().max(1e7),
+      currency: z10.string().length(3).default("CAD"),
+      description: z10.string().min(3).max(500)
     });
-    executeSplitsSchema = z8.object({
-      revenueEventId: z8.string().uuid(),
-      contractId: z8.string().uuid(),
-      paymentIntentId: z8.string().min(1),
-      grossAmount: z8.number().positive(),
-      currency: z8.string().length(3).default("CAD")
+    executeSplitsSchema = z10.object({
+      revenueEventId: z10.string().uuid(),
+      contractId: z10.string().uuid(),
+      paymentIntentId: z10.string().min(1),
+      grossAmount: z10.number().positive(),
+      currency: z10.string().length(3).default("CAD")
     });
-    refundSchema = z8.object({
-      revenueEventId: z8.string().uuid(),
-      reason: z8.enum(["duplicate", "fraudulent", "requested_by_customer"]).optional()
+    refundSchema = z10.object({
+      revenueEventId: z10.string().uuid(),
+      reason: z10.enum(["duplicate", "fraudulent", "requested_by_customer"]).optional()
     });
-  }
-});
-
-// server/adminAuth.ts
-async function isAdmin(req, res, next) {
-  const user = req.user;
-  if (!user) {
-    res.status(401).json({ message: "Authentication required" });
-    return;
-  }
-  try {
-    const dbUser = await storage.getUser(user.claims.sub);
-    if (!dbUser) {
-      res.status(401).json({ message: "User not found" });
-      return;
-    }
-    const isAdminUser = dbUser.role === "admin";
-    if (!isAdminUser) {
-      res.status(403).json({ message: "Admin access required" });
-      return;
-    }
-    next();
-  } catch (error) {
-    console.error("Error checking admin status:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-}
-var init_adminAuth = __esm({
-  "server/adminAuth.ts"() {
-    "use strict";
-    init_storage();
   }
 });
 
 // server/security-routes.ts
-import { z as z9 } from "zod";
-import { sql as sql17 } from "drizzle-orm";
+import { z as z11 } from "zod";
+import { sql as sql21 } from "drizzle-orm";
 async function registerSecurityRoutes(app) {
   app.post(
     "/api/splits",
@@ -11976,7 +13829,7 @@ async function registerSecurityRoutes(app) {
         const body = splitSheetSchema.parse(req.body);
         const owned = await requireOwnedContract(req, res, body.contractId);
         if (!owned) return;
-        const prevRows = await db.execute(sql17`
+        const prevRows = await db.execute(sql21`
           SELECT version_number, collaborators, content_hash, created_at
           FROM split_versions
           WHERE contract_id = ${body.contractId}
@@ -12027,7 +13880,7 @@ async function registerSecurityRoutes(app) {
           (s, c) => s + c.ownershipPercentage,
           0
         );
-        const result = await db.execute(sql17`
+        const result = await db.execute(sql21`
           INSERT INTO split_versions
             (contract_id, version_number, content_hash, prev_hash,
              status, collaborators, total_pct, created_by)
@@ -12061,7 +13914,7 @@ async function registerSecurityRoutes(app) {
           } : null
         });
       } catch (err) {
-        if (err instanceof z9.ZodError) {
+        if (err instanceof z11.ZodError) {
           res.status(400).json({ error: "Validation failed", issues: err.errors });
         } else {
           console.error("[SPLIT CREATE ERROR]", err);
@@ -12077,17 +13930,17 @@ async function registerSecurityRoutes(app) {
     async (req, res) => {
       const userId = req.user?.claims?.sub;
       const { versionId } = req.params;
-      const bodySchema = z9.object({
-        signerName: z9.string().min(2).max(200),
-        signerEmail: z9.string().email(),
-        signerTitle: z9.string().max(100).optional(),
-        signatureData: z9.string().min(100),
+      const bodySchema = z11.object({
+        signerName: z11.string().min(2).max(200),
+        signerEmail: z11.string().email(),
+        signerTitle: z11.string().max(100).optional(),
+        signatureData: z11.string().min(100),
         // base64 PNG
-        mode: z9.enum(["draw", "type"]),
-        kycLegalName: z9.string().max(200).optional(),
-        kycIdType: z9.string().max(40).optional(),
-        kycPhone: z9.string().max(20).optional(),
-        kycVerifiedAt: z9.string().datetime().optional()
+        mode: z11.enum(["draw", "type"]),
+        kycLegalName: z11.string().max(200).optional(),
+        kycIdType: z11.string().max(40).optional(),
+        kycPhone: z11.string().max(20).optional(),
+        kycVerifiedAt: z11.string().datetime().optional()
       });
       try {
         const body = bodySchema.parse(req.body);
@@ -12096,7 +13949,7 @@ async function registerSecurityRoutes(app) {
           `${body.signatureData}${body.signerEmail}${(/* @__PURE__ */ new Date()).toISOString()}`
         );
         const phoneHash = body.kycPhone ? sha256(body.kycPhone) : null;
-        await db.execute(sql17`
+        await db.execute(sql21`
           INSERT INTO split_signatures
             (split_version_id, contract_id, signer_name, signer_email, signer_title,
              signature_data, signature_hash, ip_address, user_agent, mode,
@@ -12116,7 +13969,7 @@ async function registerSecurityRoutes(app) {
             ip_address     = EXCLUDED.ip_address,
             signed_at      = NOW()
         `);
-        const versionRow = await db.execute(sql17`
+        const versionRow = await db.execute(sql21`
           SELECT sv.id, sv.contract_id, sv.version_number, sv.content_hash, sv.prev_hash,
                  sv.total_pct, sv.collaborators,
                  COUNT(ss.id) AS sig_count
@@ -12132,14 +13985,14 @@ async function registerSecurityRoutes(app) {
         if (allSigned) {
           const signedAt = /* @__PURE__ */ new Date();
           const lockExpiry = computeLockExpiry(signedAt);
-          await db.execute(sql17`
+          await db.execute(sql21`
             UPDATE split_versions SET
               status          = 'signed',
               signed_at       = ${signedAt},
               lock_expires_at = ${lockExpiry}
             WHERE id = ${versionId}::uuid AND status IN ('draft','pending_signatures')
           `);
-          await db.execute(sql17`
+          await db.execute(sql21`
             INSERT INTO zk_ownership_proofs
               (contract_id, version_number, content_hash, prev_hash, status,
                total_pct, is_valid, is_finalized, signature_count, collaborator_count, signed_at)
@@ -12148,19 +14001,19 @@ async function registerSecurityRoutes(app) {
                'signed', ${v.total_pct}, TRUE, TRUE, ${actualSigs}, ${requiredSigs}, ${signedAt})
           `);
           setTimeout(async () => {
-            await db.execute(sql17`
+            await db.execute(sql21`
               UPDATE split_versions SET status = 'locked', locked_at = NOW()
               WHERE id = ${versionId}::uuid AND status = 'signed'
             `).catch(() => {
             });
-            await db.execute(sql17`
+            await db.execute(sql21`
               UPDATE zk_ownership_proofs SET locked_at = NOW()
               WHERE contract_id = ${v.contract_id} AND version_number = ${v.version_number}
             `).catch(() => {
             });
           }, 48 * 60 * 60 * 1e3);
         } else {
-          await db.execute(sql17`
+          await db.execute(sql21`
             UPDATE split_versions SET status = 'pending_signatures'
             WHERE id = ${versionId}::uuid AND status = 'draft'
           `);
@@ -12185,7 +14038,7 @@ async function registerSecurityRoutes(app) {
           message: allSigned ? "All parties have signed. Contract will lock in 48 hours." : `${actualSigs}/${requiredSigs} signatures collected.`
         });
       } catch (err) {
-        if (err instanceof z9.ZodError) {
+        if (err instanceof z11.ZodError) {
           res.status(400).json({ error: "Invalid signature data", issues: err.errors });
         } else {
           console.error("[SIGN ERROR]", err);
@@ -12200,7 +14053,7 @@ async function registerSecurityRoutes(app) {
       const result = await openDispute(userId, req.body, req);
       res.status(201).json(result);
     } catch (err) {
-      if (err instanceof z9.ZodError) {
+      if (err instanceof z11.ZodError) {
         res.status(400).json({ error: "Invalid dispute data", issues: err.errors });
       } else {
         console.error("[DISPUTE OPEN ERROR]", err);
@@ -12210,7 +14063,7 @@ async function registerSecurityRoutes(app) {
   });
   app.get("/api/disputes", isAuthenticated, async (req, res) => {
     const userId = req.user?.claims?.sub;
-    const rows = await db.execute(sql17`
+    const rows = await db.execute(sql21`
       SELECT id, contract_id, dispute_type, status, description,
              freeze_payouts, created_at, updated_at
       FROM disputes
@@ -12222,16 +14075,16 @@ async function registerSecurityRoutes(app) {
   });
   app.patch("/api/disputes/:id/resolve", isAuthenticated, isAdmin, async (req, res) => {
     const adminId = req.user?.claims?.sub;
-    const schema = z9.object({
-      resolution: z9.enum(["accepted", "rejected"]),
-      notes: z9.string().min(5).max(2e3)
+    const schema = z11.object({
+      resolution: z11.enum(["accepted", "rejected"]),
+      notes: z11.string().min(5).max(2e3)
     });
     try {
       const { resolution, notes } = schema.parse(req.body);
       await resolveDispute(req.params.id, adminId, resolution, notes, req);
       res.json({ resolved: true, resolution });
     } catch (err) {
-      if (err instanceof z9.ZodError) {
+      if (err instanceof z11.ZodError) {
         res.status(400).json({ error: "Invalid resolve data", issues: err.errors });
       } else {
         console.error("[DISPUTE RESOLVE ERROR]", err);
@@ -12241,16 +14094,16 @@ async function registerSecurityRoutes(app) {
   });
   app.post("/api/api-keys", isAuthenticated, async (req, res) => {
     const userId = req.user?.claims?.sub;
-    const schema = z9.object({
-      name: z9.string().min(1).max(100),
-      scopes: z9.array(z9.enum(["verify_ownership", "read_metadata", "write_splits", "*"])),
-      expiresAt: z9.string().datetime().optional()
+    const schema = z11.object({
+      name: z11.string().min(1).max(100),
+      scopes: z11.array(z11.enum(["verify_ownership", "read_metadata", "write_splits", "*"])),
+      expiresAt: z11.string().datetime().optional()
     });
     try {
       const body = schema.parse(req.body);
       const { raw, hash, prefix } = generateApiKey();
       const scopesLiteral = `{${body.scopes.map((s) => `"${s.replace(/"/g, '\\"')}"`).join(",")}}`;
-      await db.execute(sql17`
+      await db.execute(sql21`
         INSERT INTO api_keys (owner_id, key_hash, key_prefix, name, scopes, expires_at)
         VALUES (${userId}, ${hash}, ${prefix}, ${body.name},
                 ${scopesLiteral}::text[], ${body.expiresAt ?? null}::timestamptz)
@@ -12272,7 +14125,7 @@ async function registerSecurityRoutes(app) {
         warning: "Store this key securely. It will not be shown again."
       });
     } catch (err) {
-      if (err instanceof z9.ZodError) {
+      if (err instanceof z11.ZodError) {
         res.status(400).json({ error: "Invalid API key config", issues: err.errors });
       } else {
         console.error("[API KEY CREATE ERROR]", err);
@@ -12282,7 +14135,7 @@ async function registerSecurityRoutes(app) {
   });
   app.get("/api/api-keys", isAuthenticated, async (req, res) => {
     const userId = req.user?.claims?.sub;
-    const rows = await db.execute(sql17`
+    const rows = await db.execute(sql21`
       SELECT id, key_prefix, name, scopes, rate_limit, is_active,
              last_used_at, expires_at, created_at
       FROM api_keys WHERE owner_id = ${userId}
@@ -12292,7 +14145,7 @@ async function registerSecurityRoutes(app) {
   });
   app.delete("/api/api-keys/:id", isAuthenticated, async (req, res) => {
     const userId = req.user?.claims?.sub;
-    await db.execute(sql17`
+    await db.execute(sql21`
       UPDATE api_keys SET is_active = FALSE
       WHERE id = ${req.params.id}::uuid AND owner_id = ${userId}
     `);
@@ -12317,7 +14170,7 @@ async function registerSecurityRoutes(app) {
     }
   );
   app.get("/api/admin/fraud-events", isAuthenticated, isAdmin, async (_req, res) => {
-    const rows = await db.execute(sql17`
+    const rows = await db.execute(sql21`
       SELECT fe.*, crp.current_score, crp.freeze_active
       FROM fraud_events fe
       LEFT JOIN contract_risk_profiles crp ON crp.contract_id = fe.contract_id
@@ -12330,7 +14183,7 @@ async function registerSecurityRoutes(app) {
   app.get("/api/splits/:contractId/history", ...requireActivePermission("agreement.read"), async (req, res) => {
     const owned = await requireOwnedContract(req, res, req.params.contractId);
     if (!owned) return;
-    const rows = await db.execute(sql17`
+    const rows = await db.execute(sql21`
       SELECT version_number, content_hash, prev_hash, status,
              total_pct, created_at, signed_at, locked_at,
              jsonb_array_length(collaborators) AS collaborator_count
@@ -12343,7 +14196,7 @@ async function registerSecurityRoutes(app) {
   app.get("/api/audit-log", ...requireActiveOrg(), async (req, res) => {
     const userId = req.user?.claims?.sub;
     const limit = Math.min(Number(req.query.limit ?? 50), 200);
-    const rows = await db.execute(sql17`
+    const rows = await db.execute(sql21`
       SELECT id, action, resource_type, resource_id, ip_address, created_at
       FROM audit_log
       WHERE user_id = ${userId}
@@ -12370,7 +14223,7 @@ var init_security_routes = __esm({
 });
 
 // server/compliance-routes.ts
-import { z as z10 } from "zod";
+import { z as z12 } from "zod";
 import { eq as eq7 } from "drizzle-orm";
 function requireTermsAccepted(req, res, next) {
   const path3 = req.path;
@@ -12449,9 +14302,9 @@ function registerComplianceRoutes(app) {
   });
   app.post("/api/user/accept-terms", isAuthenticated, async (req, res) => {
     const userId = req.user.claims.sub;
-    const schema = z10.object({
-      docType: z10.enum(GATED_DOC_TYPES).optional(),
-      version: z10.string().max(40).optional()
+    const schema = z12.object({
+      docType: z12.enum(GATED_DOC_TYPES).optional(),
+      version: z12.string().max(40).optional()
       // legacy field, ignored — version is always the current published one
     });
     try {
@@ -12501,7 +14354,7 @@ function registerComplianceRoutes(app) {
         results
       });
     } catch (err) {
-      if (err instanceof z10.ZodError) {
+      if (err instanceof z12.ZodError) {
         res.status(400).json({ error: "Invalid request", issues: err.errors });
         return;
       }
@@ -12561,7 +14414,7 @@ function registerComplianceRoutes(app) {
   });
   app.post("/api/account/delete", isAuthenticated, async (req, res) => {
     const userId = req.user.claims.sub;
-    const schema = z10.object({ confirm: z10.literal(true) });
+    const schema = z12.object({ confirm: z12.literal(true) });
     try {
       schema.parse(req.body ?? {});
       const anonymizedEmail = `deleted-${userId}@anonymized.splitsheet.ca`;
@@ -12589,7 +14442,7 @@ function registerComplianceRoutes(app) {
         message: "Your account has been deactivated and personal data anonymized. Financial/legal records required for royalty accounting are retained in anonymized form."
       });
     } catch (err) {
-      if (err instanceof z10.ZodError) {
+      if (err instanceof z12.ZodError) {
         res.status(400).json({ error: "You must confirm deletion (confirm: true)." });
       } else {
         logger.error("compliance.delete_failed", { userId, error: err?.message });
@@ -12627,7 +14480,7 @@ var init_compliance_routes = __esm({
 
 // server/verification-routes.ts
 import crypto6 from "crypto";
-import { z as z11 } from "zod";
+import { z as z13 } from "zod";
 import { and as and4, desc as desc3, eq as eq8, gt, isNull as isNull3 } from "drizzle-orm";
 function generateSixDigitCode() {
   return crypto6.randomInt(0, 1e6).toString().padStart(6, "0");
@@ -12668,7 +14521,7 @@ function registerVerificationRoutes(app) {
         devCode: process.env.NODE_ENV !== "production" && delivery.mode === "log" ? code : void 0
       });
     } catch (err) {
-      if (err instanceof z11.ZodError) {
+      if (err instanceof z13.ZodError) {
         res.status(400).json({ error: "Invalid request", issues: err.errors });
       } else {
         console.error("[VERIFY SEND CODE]", err);
@@ -12721,7 +14574,7 @@ function registerVerificationRoutes(app) {
         verifiedAt: (/* @__PURE__ */ new Date()).toISOString()
       });
     } catch (err) {
-      if (err instanceof z11.ZodError) {
+      if (err instanceof z13.ZodError) {
         res.status(400).json({ error: "Invalid request", issues: err.errors });
       } else {
         console.error("[VERIFY CONFIRM CODE]", err);
@@ -12747,24 +14600,24 @@ var init_verification_routes = __esm({
     init_email_service();
     CODE_TTL_MS = 10 * 60 * 1e3;
     MAX_ATTEMPTS2 = 5;
-    sendCodeSchema = z11.object({
-      destination: z11.string().min(3).max(200),
+    sendCodeSchema = z13.object({
+      destination: z13.string().min(3).max(200),
       // email address or phone number
-      channel: z11.enum(["email", "sms"]).default("email"),
-      purpose: z11.string().max(50).default("identity_verification"),
-      legalName: z11.string().max(200).optional(),
-      idType: z11.string().max(40).optional()
+      channel: z13.enum(["email", "sms"]).default("email"),
+      purpose: z13.string().max(50).default("identity_verification"),
+      legalName: z13.string().max(200).optional(),
+      idType: z13.string().max(40).optional()
     });
-    confirmCodeSchema = z11.object({
-      destination: z11.string().min(3).max(200),
-      code: z11.string().length(6).regex(/^\d{6}$/),
-      purpose: z11.string().max(50).default("identity_verification")
+    confirmCodeSchema = z13.object({
+      destination: z13.string().min(3).max(200),
+      code: z13.string().length(6).regex(/^\d{6}$/),
+      purpose: z13.string().max(50).default("identity_verification")
     });
   }
 });
 
 // server/creator-routes.ts
-import { z as z12 } from "zod";
+import { z as z14 } from "zod";
 import crypto7 from "crypto";
 async function generateUniqueSlCreatorId() {
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -12806,7 +14659,7 @@ function registerCreatorRoutes(app) {
       });
       res.status(201).json(creator);
     } catch (error) {
-      if (error instanceof z12.ZodError) {
+      if (error instanceof z14.ZodError) {
         res.status(400).json({ message: "Validation failed", issues: error.errors });
       } else {
         console.error("[CREATOR CREATE ERROR]", error);
@@ -12857,7 +14710,7 @@ function registerCreatorRoutes(app) {
       });
       res.json(updated);
     } catch (error) {
-      if (error instanceof z12.ZodError) {
+      if (error instanceof z14.ZodError) {
         res.status(400).json({ message: "Validation failed", issues: error.errors });
       } else {
         console.error("[CREATOR UPDATE ERROR]", error);
@@ -12904,7 +14757,7 @@ var init_creator_routes = __esm({
 });
 
 // server/rights-routes.ts
-import { z as z13 } from "zod";
+import { z as z15 } from "zod";
 function registerRightsRoutes(app) {
   app.get("/api/rights-organizations", isAuthenticated, async (req, res) => {
     try {
@@ -12932,7 +14785,7 @@ function registerRightsRoutes(app) {
   app.put("/api/rights-profile", isAuthenticated, async (req, res) => {
     const userId = req.user.claims.sub;
     try {
-      const body = insertCreatorRightsProfileSchema.extend({ territory: z13.enum(TERRITORIES).optional() }).parse(req.body);
+      const body = insertCreatorRightsProfileSchema.extend({ territory: z15.enum(TERRITORIES).optional() }).parse(req.body);
       const before = await storage.getCreatorRightsProfile(userId);
       const profile = await storage.upsertCreatorRightsProfile(userId, body);
       await auditLog({
@@ -12946,7 +14799,7 @@ function registerRightsRoutes(app) {
       });
       res.json(profile);
     } catch (error) {
-      if (error instanceof z13.ZodError) {
+      if (error instanceof z15.ZodError) {
         res.status(400).json({ message: "Validation failed", issues: error.errors });
       } else {
         console.error("[RIGHTS PROFILE UPDATE ERROR]", error);
@@ -12966,7 +14819,7 @@ var init_rights_routes = __esm({
 });
 
 // server/legal-routes.ts
-import { z as z14 } from "zod";
+import { z as z16 } from "zod";
 function parseDocType(raw) {
   const result = docTypeParamSchema.safeParse(raw);
   return result.success ? result.data : null;
@@ -13038,7 +14891,7 @@ function registerLegalRoutes(app) {
         publishedAt: doc.publishedAt
       });
     } catch (error) {
-      if (error instanceof z14.ZodError) {
+      if (error instanceof z16.ZodError) {
         res.status(400).json({ message: "Validation failed", issues: error.errors });
       } else if (error?.code === "23505") {
         res.status(409).json({ error: "This doc type + version has already been published" });
@@ -13058,7 +14911,7 @@ var init_legal_routes = __esm({
     init_adminAuth();
     init_schema();
     init_security();
-    docTypeParamSchema = z14.enum(LEGAL_DOC_TYPES);
+    docTypeParamSchema = z16.enum(LEGAL_DOC_TYPES);
   }
 });
 
@@ -13380,6 +15233,757 @@ var init_template_routes = __esm({
   }
 });
 
+// server/reminder-routes.ts
+import { sql as sql22 } from "drizzle-orm";
+function cronAuthorized(req) {
+  const secret = (process.env.CRON_SECRET ?? "").trim();
+  if (!secret) return process.env.NODE_ENV !== "production";
+  const header = req.headers["authorization"]?.toString() ?? "";
+  const bearer = header.startsWith("Bearer ") ? header.slice(7) : "";
+  const alt = req.headers["x-cron-secret"]?.toString() ?? "";
+  return bearer === secret || alt === secret;
+}
+function registerReminderRoutes(app) {
+  app.get("/api/cron/reminders", handleReminderCron);
+  app.post("/api/cron/reminders", handleReminderCron);
+}
+async function handleReminderCron(req, res) {
+  if (!cronAuthorized(req)) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  try {
+    await ensureProductionFeatureSchema();
+    const pending = await db.execute(sql22`
+      SELECT
+        sc.id, sc.token, sc.status, sc.sent_at, sc.expires_at, sc.revoked_at,
+        sc.contract_id, sc.collaborator_id,
+        cc.name AS collaborator_name, cc.email AS collaborator_email, cc.status AS collaborator_status,
+        c.title, c.status AS contract_status
+      FROM split_confirmations sc
+      JOIN contract_collaborators cc ON cc.id = sc.collaborator_id
+      JOIN contracts c ON c.id = sc.contract_id
+      WHERE sc.status = 'sent'
+        AND sc.sent_at IS NOT NULL
+        AND sc.revoked_at IS NULL
+        AND (sc.expires_at IS NULL OR sc.expires_at > NOW())
+      ORDER BY sc.sent_at ASC
+      LIMIT 80
+    `);
+    const sent = [];
+    const skipped = [];
+    let emails = 0;
+    for (const row of pending.rows) {
+      if (emails >= MAX_EMAILS_PER_REQUEST) break;
+      const session2 = isContractSendable(String(row.contract_status));
+      if (!session2.ok) {
+        skipped.push("session");
+        continue;
+      }
+      if (row.collaborator_status === "signed" || !row.collaborator_email) {
+        skipped.push("not_pending");
+        continue;
+      }
+      const existing = await db.execute(sql22`
+        SELECT stage FROM confirmation_reminders WHERE confirmation_id = ${row.id}
+      `);
+      const stages = existing.rows.map((r) => r.stage);
+      const due = dueReminderStage(String(row.sent_at), stages);
+      if (!due) {
+        skipped.push("not_due");
+        continue;
+      }
+      const baseUrl = process.env.APP_URL ?? `${req.protocol}://${req.get("host")}`;
+      const confirmUrl = opaqueConfirmUrl(baseUrl, String(row.token));
+      const template = reminderLinkEmail({
+        contributorName: String(row.collaborator_name),
+        songTitle: String(row.title),
+        confirmUrl,
+        stage: due
+      });
+      const delivery = await sendEmail({ to: String(row.collaborator_email), ...template });
+      const status = delivery.delivered || delivery.mode === "log" ? "sent" : "failed";
+      await db.execute(sql22`
+        INSERT INTO confirmation_reminders (
+          confirmation_id, contract_id, collaborator_id, stage, reminder_type, delivery_status
+        ) VALUES (
+          ${String(row.id)}, ${String(row.contract_id)}, ${String(row.collaborator_id)},
+          ${due}, 'pending_confirmation', ${status}
+        )
+        ON CONFLICT (confirmation_id, stage) DO NOTHING
+      `);
+      emails += 1;
+      if (status === "sent") {
+        sent.push(String(row.id));
+        logger.info("reminder.sent", { confirmationId: row.id, stage: due, projectId: row.contract_id });
+      } else {
+        logger.error("reminder.send_failed", { confirmationId: row.id, stage: due });
+      }
+    }
+    res.json({ ok: true, sent: sent.length, skipped: skipped.length, processed: pending.rows.length });
+  } catch (error) {
+    logger.error("reminder.cron_failed", { error: error?.message });
+    res.status(500).json({ message: "Reminder job failed" });
+  }
+}
+var init_reminder_routes = __esm({
+  "server/reminder-routes.ts"() {
+    "use strict";
+    init_db();
+    init_email_service();
+    init_confirmation_url();
+    init_feature_policy();
+    init_confirmation_send();
+    init_confirmation_send();
+    init_logger();
+    init_feature_schema();
+  }
+});
+
+// server/custom-field-routes.ts
+import { sql as sql23 } from "drizzle-orm";
+function mapField(r) {
+  return {
+    id: String(r.id),
+    templateType: String(r.template_type ?? "split-sheet"),
+    label: String(r.label ?? ""),
+    fieldType: String(r.field_type ?? "text"),
+    required: Boolean(r.required),
+    placeholder: String(r.placeholder ?? ""),
+    options: r.options ?? [],
+    defaultValue: String(r.default_value ?? ""),
+    displayOrder: Number(r.display_order ?? 0)
+  };
+}
+function registerCustomFieldRoutes(app) {
+  app.get("/api/custom-fields", ...requireActivePermission("agreement.read"), async (req, res) => {
+    await ensureProductionFeatureSchema();
+    const userId = req.user.claims.sub;
+    const templateType = String(req.query.templateType ?? "split-sheet");
+    const rows = await db.execute(sql23`
+      SELECT * FROM operator_custom_fields
+      WHERE created_by = ${userId}
+        AND template_type = ${templateType}
+      ORDER BY display_order ASC, created_at ASC
+    `);
+    res.json(rows.rows.map(mapField));
+  });
+  app.post("/api/custom-fields", ...requireActivePermission("agreement.update"), async (req, res) => {
+    const parsed = customFieldDefSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid field." });
+      return;
+    }
+    if (parsed.data.fieldType === "select" && !parsed.data.options?.length) {
+      res.status(400).json({ message: "Select fields need at least one option." });
+      return;
+    }
+    await ensureProductionFeatureSchema();
+    const userId = req.user.claims.sub;
+    const inserted = await db.execute(sql23`
+      INSERT INTO operator_custom_fields (
+        organization_id, created_by, template_type, label, field_type, required,
+        placeholder, options, default_value, display_order
+      ) VALUES (
+        ${req.orgAuth?.organizationId ?? null},
+        ${userId},
+        ${parsed.data.templateType || "split-sheet"},
+        ${parsed.data.label},
+        ${parsed.data.fieldType},
+        ${parsed.data.required ?? false},
+        ${parsed.data.placeholder ?? null},
+        ${JSON.stringify(parsed.data.options ?? [])}::jsonb,
+        ${parsed.data.defaultValue ?? null},
+        ${parsed.data.displayOrder ?? 0}
+      ) RETURNING *
+    `);
+    logger.info("custom_field.created", { userId, fieldId: inserted.rows[0]?.id });
+    res.status(201).json(mapField(inserted.rows[0]));
+  });
+  app.put("/api/custom-fields/:id", ...requireActivePermission("agreement.update"), async (req, res) => {
+    const parsed = customFieldDefSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid field." });
+      return;
+    }
+    const userId = req.user.claims.sub;
+    const updated = await db.execute(sql23`
+      UPDATE operator_custom_fields SET
+        label = ${parsed.data.label},
+        field_type = ${parsed.data.fieldType},
+        required = ${parsed.data.required ?? false},
+        placeholder = ${parsed.data.placeholder ?? null},
+        options = ${JSON.stringify(parsed.data.options ?? [])}::jsonb,
+        default_value = ${parsed.data.defaultValue ?? null},
+        display_order = ${parsed.data.displayOrder ?? 0},
+        updated_at = now()
+      WHERE id = ${req.params.id} AND created_by = ${userId}
+      RETURNING *
+    `);
+    if (!updated.rows.length) {
+      res.status(404).json({ message: "Field not found" });
+      return;
+    }
+    res.json(mapField(updated.rows[0]));
+  });
+  app.delete("/api/custom-fields/:id", ...requireActivePermission("agreement.update"), async (req, res) => {
+    const userId = req.user.claims.sub;
+    const deleted = await db.execute(sql23`
+      DELETE FROM operator_custom_fields WHERE id = ${req.params.id} AND created_by = ${userId} RETURNING id
+    `);
+    if (!deleted.rows.length) {
+      res.status(404).json({ message: "Field not found" });
+      return;
+    }
+    res.json({ success: true });
+  });
+  app.put("/api/projects/:id/custom-fields", ...requireActivePermission("project.update"), async (req, res) => {
+    const userId = req.user.claims.sub;
+    const contract = await storage.getContract(req.params.id);
+    if (!contract) {
+      res.status(404).json({ message: "Project not found" });
+      return;
+    }
+    const orgId = req.orgAuth?.organizationId ?? await resolveRequestOrgId(req);
+    if (!resourceBelongsToOrg(contract, orgId, userId)) {
+      res.status(403).json({ message: "Not authorized" });
+      return;
+    }
+    const defs = await db.execute(sql23`
+      SELECT * FROM operator_custom_fields WHERE created_by = ${userId} AND template_type = ${contract.type}
+      ORDER BY display_order ASC
+    `);
+    const fields = defs.rows.map(mapField);
+    const incoming = req.body?.values ?? {};
+    const values = {};
+    for (const field of fields) {
+      const checked = validateCustomFieldValue(field, incoming[field.id]);
+      if (!checked.ok) {
+        res.status(400).json({ message: checked.message });
+        return;
+      }
+      values[field.id] = checked.value;
+    }
+    const data = {
+      ...contract.data,
+      customFieldValues: values,
+      customFieldSnapshot: fields
+    };
+    const updated = await storage.updateContract(contract.id, { data });
+    res.json({
+      values,
+      fields: updated.data?.customFieldSnapshot ?? fields
+    });
+  });
+}
+var init_custom_field_routes = __esm({
+  "server/custom-field-routes.ts"() {
+    "use strict";
+    init_db();
+    init_rbac_middleware();
+    init_feature_policy();
+    init_storage();
+    init_authz_helpers();
+    init_feature_schema();
+    init_logger();
+  }
+});
+
+// server/copilot-history.ts
+import { sql as sql24 } from "drizzle-orm";
+function registerCopilotHistoryRoutes(app) {
+  app.get("/api/copilot/history-suggestions", ...requireActivePermission("project.read"), async (req, res) => {
+    const userId = req.user.claims.sub;
+    const email = String(req.query.email ?? "").trim().toLowerCase();
+    const name = String(req.query.name ?? "").trim();
+    const title = String(req.query.title ?? "").trim();
+    if (!email && !name) {
+      res.status(400).json({ message: "Provide a contributor name or email." });
+      return;
+    }
+    const rows = await db.execute(sql24`
+      SELECT c.id AS project_id, c.title, c.created_at, c.status,
+             cc.name, cc.email, cc.role, cc.ownership_percentage
+      FROM contract_collaborators cc
+      JOIN contracts c ON c.id = cc.contract_id
+      WHERE c.created_by = ${userId}
+        AND (
+          (${email || null}::varchar IS NOT NULL AND lower(cc.email) = ${email || null})
+          OR (${name || null}::varchar IS NOT NULL AND lower(cc.name) = ${name.toLowerCase() || null})
+        )
+      ORDER BY c.created_at DESC
+      LIMIT 25
+    `);
+    const history = rows.rows.map((r) => ({
+      projectId: String(r.project_id),
+      title: String(r.title),
+      date: r.created_at,
+      status: r.status,
+      role: r.role,
+      ownershipPercentage: Number(r.ownership_percentage ?? 0)
+    }));
+    const splits = history.map((h) => h.ownershipPercentage);
+    const pattern = mostCommonSplit(splits);
+    const conflicts = history.filter(
+      (h) => pattern && Math.abs(h.ownershipPercentage - Number.parseFloat(pattern.label)) > 5 || title && titlesLookSimilar(title, h.title)
+    ).map((h) => ({
+      projectId: h.projectId,
+      title: h.title,
+      date: h.date,
+      reason: title && titlesLookSimilar(title, h.title) ? "Previous records use a similar song title." : "Previous records differ."
+    }));
+    logger.info("copilot.suggestion_viewed", { userId, matches: history.length });
+    res.json({
+      matches: history.length,
+      previousSplitPatterns: pattern ? [{ label: pattern.label, count: pattern.count }] : [],
+      sourceSessions: history.slice(0, 8),
+      conflicts,
+      disclaimer: "These are previous records from your workspace. They are not a legal determination."
+    });
+  });
+  app.post("/api/copilot/apply-suggestion", ...requireActivePermission("project.update"), async (req, res) => {
+    const userId = req.user.claims.sub;
+    const projectId = String(req.body?.projectId ?? "");
+    const name = String(req.body?.name ?? "").trim();
+    const email = String(req.body?.email ?? "").trim();
+    const role = String(req.body?.role ?? "songwriter").trim();
+    const ownership = String(req.body?.ownershipPercentage ?? "");
+    if (!projectId || !name || !ownership) {
+      res.status(400).json({ message: "projectId, name, and ownershipPercentage are required." });
+      return;
+    }
+    const contract = await storage.getContract(projectId);
+    if (!contract) {
+      res.status(404).json({ message: "Project not found" });
+      return;
+    }
+    const orgId = req.orgAuth?.organizationId ?? await resolveRequestOrgId(req);
+    if (!resourceBelongsToOrg(contract, orgId, userId)) {
+      res.status(403).json({ message: "Not authorized" });
+      return;
+    }
+    if (contract.status === "signed" || contract.status === "active") {
+      res.status(409).json({ message: "Cannot apply suggestions to a confirmed project." });
+      return;
+    }
+    const collab = await storage.addContractCollaborator({
+      contractId: projectId,
+      name,
+      email: email || null,
+      role,
+      ownershipPercentage: ownership,
+      status: "pending"
+    });
+    logger.info("copilot.suggestion_applied", { userId, projectId, contributorId: collab.id });
+    res.status(201).json({ applied: true, contributor: { id: collab.id, name: collab.name } });
+  });
+}
+var init_copilot_history = __esm({
+  "server/copilot-history.ts"() {
+    "use strict";
+    init_db();
+    init_rbac_middleware();
+    init_storage();
+    init_feature_policy();
+    init_authz_helpers();
+    init_logger();
+  }
+});
+
+// server/v1-api-routes.ts
+function hasScope(req, needed) {
+  const scopes = req.apiScopes ?? [];
+  if (scopes.includes("*") || scopes.includes(needed)) return true;
+  if (needed === "ledger:read") return scopes.includes("read:ownership") || scopes.includes("read:contracts");
+  if (needed === "sessions:read") return scopes.includes("read:contracts");
+  if (needed === "contributors:read") return scopes.includes("read:ownership") || scopes.includes("read:contracts");
+  return false;
+}
+function requireV1Scope(scope) {
+  return (req, res, next) => {
+    if (!hasScope(req, scope)) {
+      logger.info("api.request_rejected", { reason: "scope", scope, keyId: req.apiKeyId });
+      res.status(403).json({ error: `Insufficient scope. Required: ${scope}` });
+      return;
+    }
+    next();
+  };
+}
+function ownerId(req) {
+  return String(req.apiOwnerId ?? "");
+}
+function registerV1ApiRoutes(app) {
+  const gate = [limiter, apiKeyAuth];
+  app.get("/api/v1/openapi.json", (_req, res) => {
+    res.json({
+      openapi: "3.0.3",
+      info: { title: "SplitSheet Read API", version: "1.0.0" },
+      servers: [{ url: "/api/v1" }],
+      security: [{ apiKey: [] }],
+      components: {
+        securitySchemes: { apiKey: { type: "apiKey", in: "header", name: "X-Api-Key" } }
+      },
+      paths: {
+        "/ledger": { get: { summary: "List rights ledger assets", security: [{ apiKey: [] }] } },
+        "/ledger/{id}": { get: { summary: "Get one ledger asset" } },
+        "/sessions": { get: { summary: "List projects/sessions" } },
+        "/sessions/{id}": { get: { summary: "Get one session" } },
+        "/contributors": { get: { summary: "List contributors" } },
+        "/export": { get: { summary: "Export sessions and ledger summary" } }
+      }
+    });
+  });
+  app.get("/api/v1/ledger", ...gate, requireV1Scope("ledger:read"), async (req, res) => {
+    const { limit, offset } = parseApiPage(req.query);
+    const assets = await storage.getSongAssets(ownerId(req));
+    const page = assets.slice(offset, offset + limit).map(publicAsset);
+    res.json({ items: page, limit, offset, total: assets.length });
+  });
+  app.get("/api/v1/ledger/:id", ...gate, requireV1Scope("ledger:read"), async (req, res) => {
+    const asset = await storage.getSongAsset(req.params.id);
+    if (!asset || asset.createdBy !== ownerId(req)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.json(publicAsset(asset));
+  });
+  app.get("/api/v1/sessions", ...gate, requireV1Scope("sessions:read"), async (req, res) => {
+    const { limit, offset } = parseApiPage(req.query);
+    const contracts2 = await storage.getContracts(ownerId(req));
+    const page = contracts2.slice(offset, offset + limit).map(publicSession);
+    res.json({ items: page, limit, offset, total: contracts2.length });
+  });
+  app.get("/api/v1/sessions/:id", ...gate, requireV1Scope("sessions:read"), async (req, res) => {
+    const contract = await storage.getContract(req.params.id);
+    if (!contract || contract.createdBy !== ownerId(req)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.json(publicSession(contract));
+  });
+  app.get("/api/v1/contributors", ...gate, requireV1Scope("contributors:read"), async (req, res) => {
+    const { limit, offset } = parseApiPage(req.query);
+    const contracts2 = await storage.getContracts(ownerId(req));
+    const people = [];
+    for (const contract of contracts2) {
+      const collabs = await storage.getContractCollaborators(contract.id);
+      for (const c of collabs) {
+        people.push({
+          id: c.id,
+          name: c.name,
+          role: c.role,
+          sessionId: contract.id,
+          sessionTitle: contract.title,
+          ownershipPercentage: c.ownershipPercentage,
+          status: c.status
+        });
+      }
+    }
+    res.json({ items: people.slice(offset, offset + limit), limit, offset, total: people.length });
+  });
+  app.get("/api/v1/export", ...gate, requireV1Scope("sessions:read"), async (req, res) => {
+    if (!hasScope(req, "ledger:read")) {
+      res.status(403).json({ error: "Insufficient scope. Required: ledger:read" });
+      return;
+    }
+    const userId = ownerId(req);
+    const contracts2 = await storage.getContracts(userId);
+    const assets = await storage.getSongAssets(userId);
+    await auditLog({
+      userId,
+      apiKeyId: req.apiKeyId,
+      action: "api.export",
+      resourceType: "v1_export",
+      afterState: { sessions: contracts2.length, assets: assets.length }
+    }).catch(() => {
+    });
+    res.json({
+      exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      sessions: contracts2.map(publicSession),
+      ledger: assets.map(publicAsset)
+    });
+  });
+}
+function publicSession(contract) {
+  return {
+    id: contract.id,
+    title: contract.title,
+    type: contract.type,
+    status: contract.status,
+    createdAt: contract.createdAt,
+    updatedAt: contract.updatedAt
+  };
+}
+function publicAsset(asset) {
+  return {
+    id: asset.id,
+    title: asset.title,
+    isrc: asset.isrc ?? null,
+    status: asset.status,
+    createdAt: asset.createdAt
+  };
+}
+var limiter;
+var init_v1_api_routes = __esm({
+  "server/v1-api-routes.ts"() {
+    "use strict";
+    init_storage();
+    init_security();
+    init_feature_policy();
+    init_logger();
+    limiter = createRateLimiter(120, 6e4);
+  }
+});
+
+// server/referral-routes.ts
+var referral_routes_exports = {};
+__export(referral_routes_exports, {
+  markReferralConverted: () => markReferralConverted,
+  registerReferralRoutes: () => registerReferralRoutes
+});
+import { sql as sql25 } from "drizzle-orm";
+async function ensureUserCode(userId) {
+  await ensureProductionFeatureSchema();
+  const user = await storage.getUser(userId);
+  const existing = user?.referralCode;
+  if (existing) return existing;
+  const code = generateReferralCode(`${userId}-${user?.email ?? "studio"}`);
+  await db.execute(sql25`
+    UPDATE users SET referral_code = ${code} WHERE id = ${userId} AND referral_code IS NULL
+  `);
+  const again = await storage.getUser(userId);
+  return again?.referralCode || code;
+}
+function registerReferralRoutes(app) {
+  app.get("/api/referrals", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const code = await ensureUserCode(userId);
+      await db.execute(sql25`
+        UPDATE referrals SET status = 'EXPIRED', updated_at = now()
+        WHERE referrer_id = ${userId} AND status = 'PENDING' AND expires_at IS NOT NULL AND expires_at < now()
+      `);
+      const rows = await db.execute(sql25`
+        SELECT status, COUNT(*)::int AS count
+        FROM referrals
+        WHERE referrer_id = ${userId}
+        GROUP BY status
+      `);
+      const counts = {};
+      for (const row of rows.rows) counts[row.status] = Number(row.count);
+      const base2 = process.env.APP_URL ?? `${req.protocol}://${req.get("host")}`;
+      res.json({
+        code,
+        link: `${base2.replace(/\/$/, "")}/login?ref=${encodeURIComponent(code)}`,
+        stats: {
+          pending: counts.PENDING ?? 0,
+          signedUp: counts.SIGNED_UP ?? 0,
+          converted: counts.CONVERTED ?? 0,
+          expired: counts.EXPIRED ?? 0
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to load referrals" });
+    }
+  });
+  app.post("/api/referrals/claim", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const code = String(req.body?.code ?? "").trim().toUpperCase();
+      if (!code) {
+        res.status(400).json({ message: "Referral code is required." });
+        return;
+      }
+      await ensureProductionFeatureSchema();
+      const mine = await ensureUserCode(userId);
+      if (mine === code) {
+        res.status(400).json({ message: "You cannot use your own referral code." });
+        return;
+      }
+      const referrer = await db.execute(sql25`
+        SELECT id FROM users WHERE referral_code = ${code} LIMIT 1
+      `);
+      if (!referrer.rows.length) {
+        res.status(404).json({ message: "Referral code not found." });
+        return;
+      }
+      const referrerId = String(referrer.rows[0].id);
+      const already = await db.execute(sql25`
+        SELECT id FROM referrals WHERE referred_user_id = ${userId} LIMIT 1
+      `);
+      if (already.rows.length) {
+        res.json({ claimed: false, reason: "already_attributed" });
+        return;
+      }
+      const expires = new Date(Date.now() + REFERRAL_TTL_MS);
+      await db.execute(sql25`
+        INSERT INTO referrals (referrer_id, referral_code, referred_user_id, status, expires_at)
+        VALUES (${referrerId}, ${code}, ${userId}, 'SIGNED_UP', ${expires})
+      `);
+      logger.info("referral.signup", { referrerId, referredUserId: userId });
+      res.status(201).json({ claimed: true, status: "SIGNED_UP" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to claim referral" });
+    }
+  });
+}
+async function markReferralConverted(userId) {
+  try {
+    await ensureProductionFeatureSchema();
+    await db.execute(sql25`
+      UPDATE referrals
+      SET status = 'CONVERTED', converted_at = now(), updated_at = now()
+      WHERE referred_user_id = ${userId} AND status = 'SIGNED_UP'
+    `);
+    logger.info("referral.conversion", { referredUserId: userId });
+  } catch {
+  }
+}
+var REFERRAL_TTL_MS;
+var init_referral_routes = __esm({
+  "server/referral-routes.ts"() {
+    "use strict";
+    init_db();
+    init_replitAuth();
+    init_storage();
+    init_feature_policy();
+    init_feature_schema();
+    init_logger();
+    REFERRAL_TTL_MS = 90 * 24 * 60 * 60 * 1e3;
+  }
+});
+
+// shared/billing-interval.ts
+function parseBillingInterval(raw) {
+  if (raw === void 0 || raw === null || raw === "") {
+    return { ok: true, interval: "month" };
+  }
+  const value = String(raw).toLowerCase().trim();
+  if (value === "month" || value === "monthly") return { ok: true, interval: "month" };
+  if (value === "year" || value === "annual" || value === "annually") {
+    return { ok: true, interval: "year" };
+  }
+  return { ok: false, message: 'Invalid interval. Use "month" or "year".' };
+}
+function defaultSubscriptionInterval(existing) {
+  return existing === "year" ? "year" : "month";
+}
+function assertPlanAllowsInterval(plan, interval) {
+  if (interval === "year" && (plan === "session" || plan === "free")) {
+    return {
+      ok: false,
+      message: "Pay-Per-Session and Starter Split do not support annual billing."
+    };
+  }
+  return { ok: true };
+}
+function stripePriceEnvKeys(plan, interval) {
+  if (plan === "session") return ["STRIPE_SESSION_PRICE_ID"];
+  if (plan === "creator_pro" && interval === "year") {
+    return ["STRIPE_PRICE_CREATOR_PRO_ANNUAL", "STRIPE_CREATOR_PRO_ANNUAL_PRICE_ID"];
+  }
+  if (plan === "studio_pro" && interval === "year") {
+    return ["STRIPE_PRICE_STUDIO_PRO_ANNUAL", "STRIPE_STUDIO_PRO_ANNUAL_PRICE_ID"];
+  }
+  if (plan === "creator_pro") {
+    return ["STRIPE_CREATOR_PRO_PRICE_ID", "STRIPE_PRO_PRICE_ID"];
+  }
+  if (plan === "studio_pro") {
+    return ["STRIPE_STUDIO_PRO_PRICE_ID", "STRIPE_LABEL_PRICE_ID"];
+  }
+  return [];
+}
+function resolveStripePriceId(plan, interval, env = process.env) {
+  for (const key of stripePriceEnvKeys(plan, interval)) {
+    const value = env[key]?.trim();
+    if (value) return value;
+  }
+  return void 0;
+}
+function mapStripePriceIdToPlan(priceId, env = process.env) {
+  if (!priceId) return null;
+  const pairs = [
+    { tier: "creator_pro", interval: "year" },
+    { tier: "studio_pro", interval: "year" },
+    { tier: "creator_pro", interval: "month" },
+    { tier: "studio_pro", interval: "month" },
+    { tier: "session", interval: "month" }
+  ];
+  for (const pair of pairs) {
+    const resolved = resolveStripePriceId(pair.tier, pair.interval, env);
+    if (resolved && resolved === priceId) return pair;
+  }
+  return null;
+}
+var PLAN_PRICE_CENTS;
+var init_billing_interval = __esm({
+  "shared/billing-interval.ts"() {
+    "use strict";
+    PLAN_PRICE_CENTS = {
+      session: { month: 2500 },
+      creator_pro: { month: 1500, year: 15e3 },
+      studio_pro: { month: 4900, year: 49e3 }
+    };
+  }
+});
+
+// shared/dashboard-ops.ts
+function getProjectPriority(project) {
+  const status = String(project.status ?? "draft").toLowerCase();
+  const priorityMap = {
+    pending_confirmation: 95,
+    pending: 90,
+    draft: 70,
+    in_review: 75,
+    review: 75,
+    confirmed: 35,
+    signed: 30,
+    archived: 5
+  };
+  const labelMap = {
+    pending_confirmation: "Awaiting confirmation",
+    pending: "Awaiting action",
+    draft: "Draft",
+    in_review: "In review",
+    review: "In review",
+    confirmed: "Confirmed",
+    signed: "Signed",
+    archived: "Archived"
+  };
+  const priority = priorityMap[status] ?? 50;
+  return {
+    priority,
+    label: labelMap[status] ?? status.replace(/[-_]/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase())
+  };
+}
+function sortProjectQueue(items) {
+  return [...items].sort((a, b) => {
+    const order = getProjectPriority(b).priority - getProjectPriority(a).priority;
+    if (order !== 0) return order;
+    const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : new Date(a.createdAt ?? 0).getTime();
+    const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : new Date(b.createdAt ?? 0).getTime();
+    return bTime - aTime;
+  });
+}
+function matchesSearchText(query, candidate) {
+  const term = query.trim();
+  if (!term) return true;
+  const haystack = [
+    candidate.title,
+    candidate.type,
+    candidate.status,
+    candidate.artistName,
+    candidate.description
+  ].filter((value) => typeof value === "string" && value.trim().length > 0).join(" ").toLowerCase();
+  const terms = term.toLowerCase().split(/\s+/).filter(Boolean);
+  return terms.every((part) => haystack.includes(part));
+}
+var init_dashboard_ops = __esm({
+  "shared/dashboard-ops.ts"() {
+    "use strict";
+  }
+});
+
 // server/license-readiness.ts
 function tierForScore(score) {
   if (score >= 100) return "ready";
@@ -13450,7 +16054,7 @@ var init_license_readiness = __esm({
 });
 
 // server/rights-ledger-routes.ts
-import { z as z15 } from "zod";
+import { z as z17 } from "zod";
 import crypto8 from "crypto";
 async function generateUniqueSlSongId() {
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -13519,7 +16123,7 @@ function registerRightsLedgerRoutes(app) {
       await recalculateLicenseReadiness(req.params.id);
       res.json(composition);
     } catch (error) {
-      if (error instanceof z15.ZodError) {
+      if (error instanceof z17.ZodError) {
         res.status(400).json({ message: "Validation failed", issues: error.errors });
       } else {
         console.error("[COMPOSITION UPSERT ERROR]", error);
@@ -13555,7 +16159,7 @@ function registerRightsLedgerRoutes(app) {
       await recalculateLicenseReadiness(req.params.id);
       res.json(master);
     } catch (error) {
-      if (error instanceof z15.ZodError) {
+      if (error instanceof z17.ZodError) {
         res.status(400).json({ message: "Validation failed", issues: error.errors });
       } else {
         console.error("[MASTER UPSERT ERROR]", error);
@@ -13600,7 +16204,7 @@ function registerRightsLedgerRoutes(app) {
       try {
         const asset = await requireAssetOwner(req, res);
         if (!asset) return;
-        const { status } = z15.object({ status: z15.enum(["clear", "pending", "not_cleared", "not_applicable"]) }).parse(req.body);
+        const { status } = z17.object({ status: z17.enum(["clear", "pending", "not_cleared", "not_applicable"]) }).parse(req.body);
         const existing = await storage.getLicenseReadiness(req.params.id);
         await storage.upsertLicenseReadiness(req.params.id, {
           ownershipComplete: existing?.ownershipComplete ?? false,
@@ -13623,7 +16227,7 @@ function registerRightsLedgerRoutes(app) {
         const tier = tierForScore(readiness.licenseScore);
         res.json({ ...readiness, tier, tierLabel: tierLabel(tier) });
       } catch (error) {
-        if (error instanceof z15.ZodError) {
+        if (error instanceof z17.ZodError) {
           res.status(400).json({ message: "Validation failed", issues: error.errors });
         } else {
           console.error("[SAMPLE CLEARANCE UPDATE ERROR]", error);
@@ -13665,13 +16269,22 @@ var init_rights_ledger_routes = __esm({
 });
 
 // server/stripe-subscription-webhook.ts
-import { sql as sql18 } from "drizzle-orm";
+import { sql as sql26 } from "drizzle-orm";
+function entitlementFromStripeSubscription(subscription) {
+  const priceId = subscription.items?.data?.[0]?.price?.id;
+  const mapped = mapStripePriceIdToPlan(priceId);
+  const metaInterval = parseBillingInterval(subscription.metadata?.interval);
+  const recurring = subscription.items?.data?.[0]?.price?.recurring?.interval;
+  const interval = mapped?.interval || (metaInterval.ok ? metaInterval.interval : null) || (recurring === "year" ? "year" : "month");
+  const tier = mapped?.tier || subscription.metadata?.tier || "pro";
+  return { tier, interval };
+}
 function isProductionLike2() {
   return isVercelRuntime() || process.env.NODE_ENV === "production" || process.env.LOCAL_DEV === "false";
 }
 async function alreadyProcessed(eventId) {
   try {
-    const rows = await db.execute(sql18`
+    const rows = await db.execute(sql26`
       SELECT 1 FROM payment_events
       WHERE stripe_event_id = ${eventId}
       LIMIT 1
@@ -13684,7 +16297,7 @@ async function alreadyProcessed(eventId) {
 }
 async function recordEvent(event, processed) {
   try {
-    await db.execute(sql18`
+    await db.execute(sql26`
       INSERT INTO payment_events
         (stripe_event_id, event_type, payload, processed)
       VALUES
@@ -13697,7 +16310,7 @@ async function recordEvent(event, processed) {
 }
 async function markProcessed(eventId) {
   try {
-    await db.execute(sql18`
+    await db.execute(sql26`
       UPDATE payment_events
       SET processed = TRUE
       WHERE stripe_event_id = ${eventId}
@@ -13717,14 +16330,19 @@ async function syncSubscriptionToUser(subscription) {
     console.warn(`[stripe/webhook] no user for Stripe customer ${customerId}`);
     return;
   }
-  const tier = subscription.metadata?.tier || "pro";
+  const { tier, interval } = entitlementFromStripeSubscription(subscription);
   const active = ["active", "trialing"].includes(subscription.status);
   await storage.updateUser(user.id, {
     subscriptionStatus: subscription.status,
     subscriptionTier: active ? tier : "free",
+    subscriptionInterval: active ? interval : defaultSubscriptionInterval(null),
     stripeSubscriptionId: subscription.id,
     stripeCustomerId: customerId
   });
+  if (active) {
+    const { markReferralConverted: markReferralConverted2 } = await Promise.resolve().then(() => (init_referral_routes(), referral_routes_exports));
+    await markReferralConverted2(user.id);
+  }
   console.log(
     `[stripe/webhook] user=${user.id} sub=${subscription.id} status=${subscription.status} tier=${active ? tier : "free"}`
   );
@@ -13735,6 +16353,10 @@ async function handleCheckoutSessionCompleted(session2) {
   const userId = session2.metadata?.userId || session2.client_reference_id;
   if (userId && customerId) {
     await storage.updateUserStripeInfo(userId, customerId, subscriptionId || "");
+    const parsed = parseBillingInterval(session2.metadata?.interval);
+    await storage.updateUser(userId, {
+      subscriptionInterval: parsed.ok ? parsed.interval : "month"
+    });
     console.log(
       `[stripe/webhook] checkout linked user=${userId} customer=${customerId} sub=${subscriptionId || "n/a"}`
     );
@@ -13880,6 +16502,7 @@ var init_stripe_subscription_webhook = __esm({
     init_db();
     init_storage();
     init_runtime();
+    init_billing_interval();
     SUBSCRIPTION_EVENTS = /* @__PURE__ */ new Set([
       "checkout.session.completed",
       "customer.subscription.created",
@@ -13894,9 +16517,10 @@ var init_stripe_subscription_webhook = __esm({
 
 // server/routes.ts
 import express2 from "express";
+import { sql as sql27 } from "drizzle-orm";
 import { createServer } from "http";
 import Stripe4 from "stripe";
-import { z as z16 } from "zod";
+import { z as z18 } from "zod";
 import OpenAI3 from "openai";
 function rateLimit(maxRequests, windowMs) {
   return (req, res, next) => {
@@ -14091,7 +16715,7 @@ async function registerRoutes(app) {
       res.json(contract);
     } catch (error) {
       console.error("Error creating contract:", error);
-      if (error instanceof z16.ZodError) {
+      if (error instanceof z18.ZodError) {
         return res.status(400).json({ message: "Invalid contract data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create contract" });
@@ -14157,7 +16781,7 @@ async function registerRoutes(app) {
         res.json(collaborator);
       } catch (error) {
         console.error("Error adding collaborator:", error);
-        if (error instanceof z16.ZodError) {
+        if (error instanceof z18.ZodError) {
           return res.status(400).json({
             message: "Invalid collaborator data",
             errors: error.errors
@@ -14206,7 +16830,7 @@ async function registerRoutes(app) {
         res.json(signature);
       } catch (error) {
         console.error("Error creating signature:", error);
-        if (error instanceof z16.ZodError) {
+        if (error instanceof z18.ZodError) {
           return res.status(400).json({ message: "Invalid signature data", errors: error.errors });
         }
         res.status(500).json({ message: "Failed to create signature" });
@@ -14320,7 +16944,7 @@ async function registerRoutes(app) {
       res.json(updatedUser);
     } catch (error) {
       console.error("Error updating profile:", error);
-      if (error instanceof z16.ZodError) {
+      if (error instanceof z18.ZodError) {
         return res.status(400).json({
           message: "Invalid profile data",
           errors: error.errors.map((e) => ({
@@ -14422,34 +17046,39 @@ async function registerRoutes(app) {
             }
           });
         }
+        const parsedInterval = parseBillingInterval(req.body?.interval);
+        if (!parsedInterval.ok) {
+          return res.status(400).json({ error: { message: parsedInterval.message } });
+        }
+        const interval = parsedInterval.interval;
+        const intervalAllowed = assertPlanAllowsInterval(plan, interval);
+        if (!intervalAllowed.ok) {
+          return res.status(400).json({ error: { message: intervalAllowed.message } });
+        }
         if (plan === "pro") {
           return res.json({
             quoteRequired: true,
             plan,
-            message: "Multi-Creator is quote-based. Contact enterprise@splitsheet.ca for pricing."
+            interval,
+            message: "Multi-Creator is quote-based. Contact enterprise@splitsheet.ca for monthly or annual pricing."
           });
         }
         const planPricing = {
           session: {
-            amount: 2500,
+            amount: PLAN_PRICE_CENTS.session.month,
             name: "Pay-Per-Session",
             envKey: "STRIPE_SESSION_PRICE_ID"
           },
           creator_pro: {
-            amount: 1500,
+            amount: interval === "year" ? PLAN_PRICE_CENTS.creator_pro.year : PLAN_PRICE_CENTS.creator_pro.month,
             name: "Creator Pro",
-            envKey: "STRIPE_CREATOR_PRO_PRICE_ID"
+            envKey: interval === "year" ? "STRIPE_PRICE_CREATOR_PRO_ANNUAL" : "STRIPE_CREATOR_PRO_PRICE_ID"
           },
           studio_pro: {
-            amount: 4900,
+            amount: interval === "year" ? PLAN_PRICE_CENTS.studio_pro.year : PLAN_PRICE_CENTS.studio_pro.month,
             name: "Studio Pro",
-            envKey: "STRIPE_STUDIO_PRO_PRICE_ID"
+            envKey: interval === "year" ? "STRIPE_PRICE_STUDIO_PRO_ANNUAL" : "STRIPE_STUDIO_PRO_PRICE_ID"
           }
-        };
-        const priceEnvMap = {
-          session: process.env.STRIPE_SESSION_PRICE_ID,
-          creator_pro: process.env.STRIPE_CREATOR_PRO_PRICE_ID || process.env.STRIPE_PRO_PRICE_ID,
-          studio_pro: process.env.STRIPE_STUDIO_PRO_PRICE_ID || process.env.STRIPE_LABEL_PRICE_ID
         };
         let customerId = user.stripeCustomerId;
         if (customerId) {
@@ -14483,14 +17112,42 @@ async function registerRoutes(app) {
               existingSub.status
             );
             const currentTier = existingSub.metadata?.tier ?? "pro";
-            if (isActive && currentTier === plan) {
+            const currentInterval = existingSub.metadata?.interval === "year" ? "year" : existingSub.items.data[0]?.price?.recurring?.interval === "year" ? "year" : "month";
+            if (isActive && currentTier === plan && currentInterval === interval) {
               return res.json({
                 alreadyActive: true,
                 plan,
+                interval,
                 subscriptionId: existingSub.id
               });
             }
-            if (isActive && currentTier !== plan) {
+            if (isActive && (currentTier !== plan || currentInterval !== interval)) {
+              const itemId = existingSub.items.data[0]?.id;
+              const nextPriceId = resolveStripePriceId(plan, interval);
+              if (itemId && nextPriceId) {
+                const updated = await stripe4.subscriptions.update(
+                  existingSub.id,
+                  {
+                    items: [{ id: itemId, price: nextPriceId }],
+                    proration_behavior: "create_prorations",
+                    metadata: { tier: plan, interval, userId },
+                    expand: ["latest_invoice.payment_intent"]
+                  }
+                );
+                await storage.updateUser(userId, {
+                  subscriptionTier: plan,
+                  subscriptionInterval: interval,
+                  subscriptionStatus: updated.status
+                });
+                const secret = updated.latest_invoice?.payment_intent?.client_secret;
+                return res.json({
+                  subscriptionId: updated.id,
+                  clientSecret: secret ?? null,
+                  plan,
+                  interval,
+                  alreadyActive: !secret && ["active", "trialing"].includes(updated.status)
+                });
+              }
               await stripe4.subscriptions.cancel(user.stripeSubscriptionId);
             }
             if (!isActive && existingSub.status === "incomplete") {
@@ -14499,7 +17156,8 @@ async function registerRoutes(app) {
                 return res.json({
                   subscriptionId: existingSub.id,
                   clientSecret: secret,
-                  plan
+                  plan,
+                  interval
                 });
             }
           } catch (err) {
@@ -14510,17 +17168,15 @@ async function registerRoutes(app) {
           }
         }
         const pricing = planPricing[plan];
-        let priceId;
-        if (priceEnvMap[plan]) {
-          priceId = priceEnvMap[plan];
-        } else {
+        let priceId = resolveStripePriceId(plan, interval);
+        if (!priceId) {
           console.warn(
-            `[SUBSCRIPTION] ${pricing.envKey} not set \u2014 creating inline price (demo mode).`
+            `[SUBSCRIPTION] ${pricing.envKey} not set \u2014 creating inline ${interval} price (demo mode).`
           );
           const inlinePrice = await stripe4.prices.create({
             unit_amount: pricing.amount,
             currency: "cad",
-            recurring: { interval: "month" },
+            recurring: { interval },
             product_data: {
               name: `SplitSheet ${pricing.name}`
             }
@@ -14532,21 +17188,28 @@ async function registerRoutes(app) {
           items: [{ price: priceId }],
           payment_behavior: "default_incomplete",
           expand: ["latest_invoice.payment_intent"],
-          metadata: { tier: plan, userId }
+          metadata: { tier: plan, interval, userId }
         });
         await storage.updateUserStripeInfo(userId, customerId, subscription.id);
+        await storage.updateUser(userId, {
+          subscriptionTier: plan,
+          subscriptionInterval: interval,
+          subscriptionStatus: subscription.status
+        });
         const clientSecret = subscription.latest_invoice?.payment_intent?.client_secret ?? null;
         if (!clientSecret) {
           return res.json({
             subscriptionId: subscription.id,
             alreadyActive: true,
-            plan
+            plan,
+            interval
           });
         }
         return res.json({
           subscriptionId: subscription.id,
           clientSecret,
-          plan
+          plan,
+          interval
         });
       } catch (error) {
         console.error("[SUBSCRIPTION ERROR]", error?.message ?? error);
@@ -14599,6 +17262,121 @@ async function registerRoutes(app) {
       }
     }
   );
+  app.post(
+    "/api/billing/portal",
+    isAuthenticated,
+    async (req, res) => {
+      try {
+        if (!stripe4) {
+          return res.status(503).json({
+            message: "Stripe is not configured. Add STRIPE_SECRET_KEY to open the billing portal."
+          });
+        }
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        if (!user?.stripeCustomerId) {
+          return res.status(400).json({
+            message: "No Stripe customer on this account yet. Subscribe first, then manage billing here."
+          });
+        }
+        const returnUrl = process.env.APP_URL ? `${process.env.APP_URL.replace(/\/$/, "")}/billing` : `${req.protocol}://${req.get("host")}/billing`;
+        const session2 = await createBillingPortalSession(
+          stripe4,
+          user.stripeCustomerId,
+          returnUrl
+        );
+        return res.json({ url: session2.url });
+      } catch (error) {
+        console.error("[BILLING PORTAL]", error?.message ?? error);
+        return res.status(400).json({
+          message: error?.message ?? "Could not open the billing portal."
+        });
+      }
+    }
+  );
+  app.post("/api/account/reset-workspace", isAuthenticated, async (req, res) => {
+    try {
+      if (String(req.body?.confirm ?? "") !== "RESET") {
+        return res.status(400).json({
+          message: "Type RESET to confirm you want to clear this workspace and return to Starter."
+        });
+      }
+      const userId = req.user.claims.sub;
+      const result = await resetOperatorWorkspace(userId, stripe4);
+      res.json({
+        ok: true,
+        ...result,
+        tier: "free",
+        message: "Workspace cleared. You are on the Starter (free) plan."
+      });
+    } catch (error) {
+      console.error("[RESET WORKSPACE]", error?.message ?? error);
+      res.status(error?.status ?? 500).json({
+        message: error?.message ?? "Could not reset workspace."
+      });
+    }
+  });
+  app.get("/api/analytics/workspace", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const projects = await storage.getContracts(userId);
+      let clientCount = 0;
+      let contributorCount = 0;
+      let averageConfirmationHours = null;
+      const confirmations2 = [];
+      try {
+        const clients = await db.execute(sql27`
+          SELECT COUNT(*) AS cnt FROM operator_clients WHERE created_by = ${userId}
+        `);
+        clientCount = Number(clients.rows[0]?.cnt ?? 0);
+        const contrib = await db.execute(sql27`
+          SELECT COUNT(*) AS cnt
+          FROM contract_collaborators cc
+          JOIN contracts c ON c.id = cc.contract_id
+          WHERE c.created_by = ${userId}
+        `);
+        contributorCount = Number(contrib.rows[0]?.cnt ?? 0);
+        const conf = await db.execute(sql27`
+          SELECT sc.status
+          FROM split_confirmations sc
+          JOIN contracts c ON c.id = sc.contract_id
+          WHERE c.created_by = ${userId}
+        `);
+        for (const row of conf.rows) confirmations2.push({ status: row.status });
+        const avg = await db.execute(sql27`
+          SELECT AVG(EXTRACT(EPOCH FROM (sc.confirmed_at - sc.sent_at)) / 3600.0) AS hours
+          FROM split_confirmations sc
+          JOIN contracts c ON c.id = sc.contract_id
+          WHERE c.created_by = ${userId}
+            AND sc.confirmed_at IS NOT NULL
+            AND sc.sent_at IS NOT NULL
+        `);
+        const hours = Number(avg.rows[0]?.hours);
+        averageConfirmationHours = Number.isFinite(hours) ? Math.round(hours * 10) / 10 : null;
+      } catch (inner) {
+        console.warn("[analytics/workspace] extra counts skipped:", inner?.message);
+      }
+      res.json(
+        summarizeWorkspace({
+          projects: projects.map((p) => ({
+            status: p.status,
+            type: p.type,
+            createdAt: p.createdAt,
+            clientId: (p.data ?? {}).clientId
+          })),
+          confirmations: confirmations2,
+          clientCount,
+          contributorCount,
+          tier: user?.subscriptionTier,
+          averageConfirmationHours
+        })
+      );
+    } catch (error) {
+      console.error("[analytics/workspace]", error?.message ?? error);
+      res.status(500).json({ message: "Failed to load workspace analytics" });
+    }
+  });
   app.get(
     "/api/stripe/subscription",
     isAuthenticated,
@@ -14610,6 +17388,7 @@ async function registerRoutes(app) {
           return res.json({
             hasSubscription: false,
             tier: user?.subscriptionTier || "free",
+            interval: user?.subscriptionInterval || "month",
             status: "inactive"
           });
         }
@@ -14623,6 +17402,7 @@ async function registerRoutes(app) {
               subscriptionId: subscription.id,
               status: subscription.status,
               tier: subscription.metadata?.tier || user.subscriptionTier || "pro",
+              interval: subscription.metadata?.interval || user.subscriptionInterval || "month",
               cancelAtPeriodEnd: subscription.cancel_at_period_end,
               currentPeriodStart: subscription.current_period_start * 1e3,
               currentPeriodEnd: subscription.current_period_end * 1e3,
@@ -14635,6 +17415,7 @@ async function registerRoutes(app) {
         return res.json({
           hasSubscription: user.subscriptionTier !== "free",
           tier: user.subscriptionTier || "free",
+          interval: user.subscriptionInterval || "month",
           status: user.subscriptionStatus || "active",
           subscriptionId: user.stripeSubscriptionId,
           // Mock dates for demo purposes when Stripe unavailable
@@ -14648,21 +17429,70 @@ async function registerRoutes(app) {
       }
     }
   );
+  app.get("/api/search", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const query = String(req.query.q ?? "").trim();
+      const [contracts2, assets] = await Promise.all([
+        storage.getContracts(userId),
+        storage.getSongAssets(userId)
+      ]);
+      const results = sortProjectQueue([
+        ...contracts2.map((contract) => ({
+          id: contract.id,
+          title: contract.title,
+          status: contract.status,
+          type: contract.type || "project",
+          description: `Project \xB7 ${contract.type || "Split sheet"}`,
+          updatedAt: contract.updatedAt,
+          createdAt: contract.createdAt,
+          url: `/projects/${contract.id}`
+        })),
+        ...assets.map((asset) => ({
+          id: asset.id,
+          title: asset.title,
+          status: asset.status,
+          type: "rights-ledger",
+          artistName: asset.artistName,
+          description: `Rights ledger \xB7 ${asset.artistName || "Catalog asset"}`,
+          updatedAt: asset.updatedAt,
+          createdAt: asset.createdAt,
+          url: `/ownership/${asset.id}`
+        }))
+      ]).filter((item) => query ? matchesSearchText(query, item) : true).slice(0, 12).map((item) => ({
+        ...item,
+        label: item.status ? String(item.status).replace(/[_-]/g, " ") : "active"
+      }));
+      res.json({ results, total: results.length, query });
+    } catch (error) {
+      console.error("Error fetching search results:", error);
+      res.status(500).json({ message: "Failed to fetch search results" });
+    }
+  });
   app.get("/api/dashboard/stats", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user.claims.sub;
       const contracts2 = await storage.getContracts(userId);
       const now = /* @__PURE__ */ new Date();
+      const isPending = (c) => c.status === "pending_confirmation" || c.status === "pending";
+      const isConfirmed = (c) => c.status === "confirmed" || c.status === "signed";
       const stats = {
-        totalContracts: contracts2.length,
-        pendingSignatures: contracts2.filter((c) => c.status === "pending").length,
-        completedThisMonth: contracts2.filter((c) => {
-          if (c.status !== "signed" || !c.updatedAt) return false;
+        totalProjects: contracts2.length,
+        pendingConfirmation: contracts2.filter(isPending).length,
+        confirmedThisMonth: contracts2.filter((c) => {
+          if (!isConfirmed(c) || !c.updatedAt) return false;
           const updatedDate = new Date(c.updatedAt);
           return updatedDate.getMonth() === now.getMonth() && updatedDate.getFullYear() === now.getFullYear();
         }).length,
-        revenueSplit: contracts2.filter((c) => c.status === "signed").length * 100
-        // Simplified: $100 per signed contract
+        drafts: contracts2.filter((c) => c.status === "draft").length,
+        // Legacy keys kept so older clients do not break
+        totalContracts: contracts2.length,
+        pendingSignatures: contracts2.filter(isPending).length,
+        completedThisMonth: contracts2.filter((c) => {
+          if (!isConfirmed(c) || !c.updatedAt) return false;
+          const updatedDate = new Date(c.updatedAt);
+          return updatedDate.getMonth() === now.getMonth() && updatedDate.getFullYear() === now.getFullYear();
+        }).length
       };
       res.json(stats);
     } catch (error) {
@@ -14703,7 +17533,7 @@ async function registerRoutes(app) {
       res.json({ success: true });
     } catch (error) {
       console.error("Error tracking activity:", error);
-      if (error instanceof z16.ZodError) {
+      if (error instanceof z18.ZodError) {
         return res.status(400).json({ message: "Invalid activity data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to track activity" });
@@ -14717,7 +17547,7 @@ async function registerRoutes(app) {
       res.json({ success: true, processed: batchData.activities.length });
     } catch (error) {
       console.error("Error tracking batch activities:", error);
-      if (error instanceof z16.ZodError) {
+      if (error instanceof z18.ZodError) {
         return res.status(400).json({ message: "Invalid batch data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to track batch activities" });
@@ -14762,7 +17592,7 @@ async function registerRoutes(app) {
       res.status(201).json(negotiation);
     } catch (error) {
       console.error("Error creating negotiation:", error);
-      if (error instanceof z16.ZodError) {
+      if (error instanceof z18.ZodError) {
         return res.status(400).json({ message: "Invalid negotiation data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create negotiation" });
@@ -14862,7 +17692,7 @@ async function registerRoutes(app) {
         }
       } catch (error) {
         console.error("Error adding conversation:", error);
-        if (error instanceof z16.ZodError) {
+        if (error instanceof z18.ZodError) {
           return res.status(400).json({
             message: "Invalid conversation data",
             errors: error.errors
@@ -15462,6 +18292,12 @@ async function registerRoutes(app) {
   registerLegalRoutes(app);
   registerTemplateRoutes(app);
   registerCopilotRoutes(app);
+  registerCopilotHistoryRoutes(app);
+  registerReminderRoutes(app);
+  registerStudioRoutes(app);
+  registerCustomFieldRoutes(app);
+  registerV1ApiRoutes(app);
+  registerReferralRoutes(app);
   registerVoiceRoutes(app);
   registerPaymentRoutes(app);
   await registerSecurityRoutes(app);
@@ -15473,6 +18309,7 @@ var rateLimitStore2, stripe4, stripeKey, openai;
 var init_routes = __esm({
   "server/routes.ts"() {
     "use strict";
+    init_db();
     init_storage();
     init_replitAuth();
     init_schema();
@@ -15480,6 +18317,9 @@ var init_routes = __esm({
     init_objectAcl();
     init_schema();
     init_confirmation_routes();
+    init_stripe_billing_portal();
+    init_workspace_reset();
+    init_workspace_analytics();
     init_copilot_routes();
     init_voice_routes();
     init_service_routes();
@@ -15494,7 +18334,15 @@ var init_routes = __esm({
     init_rights_routes();
     init_legal_routes();
     init_template_routes();
+    init_reminder_routes();
+    init_studio_routes();
+    init_custom_field_routes();
+    init_copilot_history();
+    init_v1_api_routes();
+    init_referral_routes();
+    init_billing_interval();
     init_agreement_catalog();
+    init_dashboard_ops();
     init_adminAuth();
     init_rights_ledger_routes();
     init_security();
@@ -15705,9 +18553,9 @@ var init_transport_security = __esm({
 });
 
 // server/db-migrations.ts
-import { sql as sql19 } from "drizzle-orm";
+import { sql as sql28 } from "drizzle-orm";
 async function runCoreSchemaMigrations() {
-  await db.execute(sql19`
+  await db.execute(sql28`
     ALTER TABLE users
       ADD COLUMN IF NOT EXISTS stripe_connect_account_id varchar,
       ADD COLUMN IF NOT EXISTS stripe_connect_onboarded boolean DEFAULT false,
@@ -15716,31 +18564,69 @@ async function runCoreSchemaMigrations() {
       ADD COLUMN IF NOT EXISTS terms_accepted_at timestamp,
       ADD COLUMN IF NOT EXISTS terms_version varchar,
       ADD COLUMN IF NOT EXISTS auth0_sub varchar,
-      ADD COLUMN IF NOT EXISTS active_organization_id varchar;
+      ADD COLUMN IF NOT EXISTS active_organization_id varchar,
+      ADD COLUMN IF NOT EXISTS subscription_interval varchar DEFAULT 'month';
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
+    UPDATE users
+    SET subscription_interval = 'month'
+    WHERE subscription_interval IS NULL OR subscription_interval = '';
+  `);
+  await db.execute(sql28`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_auth0_sub
       ON users (auth0_sub)
       WHERE auth0_sub IS NOT NULL;
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     ALTER TABLE contracts
       ADD COLUMN IF NOT EXISTS organization_id varchar;
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     ALTER TABLE song_assets
       ADD COLUMN IF NOT EXISTS organization_id varchar;
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE INDEX IF NOT EXISTS idx_contracts_organization_id ON contracts (organization_id);
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE INDEX IF NOT EXISTS idx_song_assets_organization_id ON song_assets (organization_id);
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
+    CREATE TABLE IF NOT EXISTS operator_clients (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id varchar,
+      created_by varchar NOT NULL,
+      name varchar NOT NULL,
+      email varchar,
+      phone varchar,
+      company varchar,
+      type varchar DEFAULT 'artist',
+      notes text,
+      default_ownership_percentage decimal(5, 2),
+      default_royalty_percentage decimal(5, 2),
+      created_at timestamp DEFAULT now(),
+      updated_at timestamp DEFAULT now()
+    )
+  `);
+  await db.execute(sql28`
+    ALTER TABLE operator_clients
+      ADD COLUMN IF NOT EXISTS company varchar,
+      ADD COLUMN IF NOT EXISTS default_ownership_percentage decimal(5, 2),
+      ADD COLUMN IF NOT EXISTS default_royalty_percentage decimal(5, 2);
+  `);
+  await db.execute(sql28`
+    CREATE INDEX IF NOT EXISTS idx_operator_clients_created_by ON operator_clients (created_by);
+  `);
+  await db.execute(sql28`
+    CREATE INDEX IF NOT EXISTS idx_operator_clients_organization_id ON operator_clients (organization_id);
+  `);
+  await db.execute(sql28`
+    CREATE INDEX IF NOT EXISTS idx_operator_clients_created_by_email ON operator_clients (created_by, email);
+  `);
+  await db.execute(sql28`
     UPDATE organization_members SET role = 'operator' WHERE role = 'member';
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS confirmations (
       id             varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       contract_id    varchar NOT NULL REFERENCES contracts(id),
@@ -15756,7 +18642,7 @@ async function runCoreSchemaMigrations() {
       updated_at     timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS song_assets (
       id          varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       title       varchar NOT NULL,
@@ -15770,11 +18656,11 @@ async function runCoreSchemaMigrations() {
       updated_at  timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     ALTER TABLE song_assets
       ADD COLUMN IF NOT EXISTS sl_song_id varchar UNIQUE;
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS ownership_records (
       id                   varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       asset_id             varchar NOT NULL REFERENCES song_assets(id),
@@ -15788,13 +18674,13 @@ async function runCoreSchemaMigrations() {
       created_at           timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     ALTER TABLE ownership_records
       ADD COLUMN IF NOT EXISTS ownership_type varchar DEFAULT 'composition',
       ADD COLUMN IF NOT EXISTS territory varchar,
       ADD COLUMN IF NOT EXISTS expiration_date timestamp;
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS revenue_events (
       id           varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       asset_id     varchar NOT NULL REFERENCES song_assets(id),
@@ -15808,7 +18694,7 @@ async function runCoreSchemaMigrations() {
       created_at   timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS payout_records (
       id                   varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       revenue_event_id     varchar NOT NULL REFERENCES revenue_events(id),
@@ -15823,7 +18709,7 @@ async function runCoreSchemaMigrations() {
       created_at           timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS user_balances (
       id              varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id         varchar NOT NULL UNIQUE REFERENCES users(id),
@@ -15834,7 +18720,7 @@ async function runCoreSchemaMigrations() {
       updated_at      timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS split_confirmations (
       id                 varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       contract_id        varchar NOT NULL REFERENCES contracts(id),
@@ -15849,31 +18735,36 @@ async function runCoreSchemaMigrations() {
       confirmation_note  text,
       ip_address         varchar,
       user_agent         text,
+      legal_doc_version_id varchar,
       created_at         timestamp DEFAULT now(),
       updated_at         timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     ALTER TABLE split_confirmations
       ADD COLUMN IF NOT EXISTS revoked_at timestamp;
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     ALTER TABLE split_confirmations
       ADD COLUMN IF NOT EXISTS consumed_at timestamp;
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     ALTER TABLE split_confirmations
       ADD COLUMN IF NOT EXISTS consent_versions jsonb;
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
+    ALTER TABLE split_confirmations
+      ADD COLUMN IF NOT EXISTS legal_doc_version_id varchar;
+  `);
+  await db.execute(sql28`
     ALTER TABLE legal_acceptances
       ADD COLUMN IF NOT EXISTS organization_id varchar;
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     ALTER TABLE organizations
       ADD COLUMN IF NOT EXISTS stripe_customer_id varchar;
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS payment_events (
       id              varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       stripe_event_id varchar NOT NULL UNIQUE,
@@ -15883,7 +18774,7 @@ async function runCoreSchemaMigrations() {
       created_at      timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS error_logs (
       id         varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       level      varchar NOT NULL DEFAULT 'error',
@@ -15895,14 +18786,14 @@ async function runCoreSchemaMigrations() {
       created_at timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS rate_limit_buckets (
       bucket_key varchar PRIMARY KEY,
       count      integer NOT NULL DEFAULT 0,
       reset_at   timestamp NOT NULL
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS organizations (
       id          varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       sl_org_id   varchar NOT NULL UNIQUE,
@@ -15917,7 +18808,7 @@ async function runCoreSchemaMigrations() {
       updated_at  timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS organization_members (
       id              varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       organization_id varchar NOT NULL REFERENCES organizations(id),
@@ -15928,9 +18819,9 @@ async function runCoreSchemaMigrations() {
       UNIQUE (organization_id, user_id)
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members (organization_id);`);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members (user_id);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members (organization_id);`);
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members (user_id);`);
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS organization_api_keys (
       id              varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       organization_id varchar NOT NULL REFERENCES organizations(id),
@@ -15944,8 +18835,8 @@ async function runCoreSchemaMigrations() {
       created_at      timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_org_api_keys_org ON organization_api_keys (organization_id);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_org_api_keys_org ON organization_api_keys (organization_id);`);
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS verification_codes (
       id           varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id      varchar REFERENCES users(id),
@@ -15961,7 +18852,7 @@ async function runCoreSchemaMigrations() {
       created_at   timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS rights_organizations (
       id                varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       name              varchar NOT NULL,
@@ -15972,7 +18863,7 @@ async function runCoreSchemaMigrations() {
       created_at        timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS creators (
       id          varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       sl_creator_id varchar NOT NULL UNIQUE,
@@ -15989,8 +18880,8 @@ async function runCoreSchemaMigrations() {
       updated_at  timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_creators_created_by ON creators (created_by);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_creators_created_by ON creators (created_by);`);
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS creator_rights_profiles (
       id                 varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id            varchar NOT NULL UNIQUE REFERENCES users(id),
@@ -16003,7 +18894,7 @@ async function runCoreSchemaMigrations() {
       updated_at         timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS composition_assets (
       id               varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       song_asset_id    varchar NOT NULL UNIQUE REFERENCES song_assets(id),
@@ -16014,7 +18905,7 @@ async function runCoreSchemaMigrations() {
       updated_at       timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS master_assets (
       id               varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       song_asset_id    varchar NOT NULL UNIQUE REFERENCES song_assets(id),
@@ -16028,7 +18919,7 @@ async function runCoreSchemaMigrations() {
       updated_at       timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS license_readiness (
       id                       varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       song_asset_id            varchar NOT NULL UNIQUE REFERENCES song_assets(id),
@@ -16041,7 +18932,7 @@ async function runCoreSchemaMigrations() {
       last_checked_at          timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     INSERT INTO rights_organizations (name, territory, organization_type, website, supported_rights)
     SELECT * FROM (VALUES
       ('SOCAN',        'CA',    'pro',              'https://www.socan.com',      ARRAY['performance_rights']::text[]),
@@ -16062,7 +18953,7 @@ async function runCoreSchemaMigrations() {
   `);
 }
 async function runLegalDocumentMigrations() {
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS legal_documents (
       id             varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       doc_type       varchar NOT NULL,
@@ -16074,7 +18965,7 @@ async function runLegalDocumentMigrations() {
       UNIQUE (doc_type, version)
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS legal_acceptances (
       id           varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id      varchar NOT NULL REFERENCES users(id),
@@ -16085,18 +18976,18 @@ async function runLegalDocumentMigrations() {
       user_agent   varchar
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_legal_acceptances_user ON legal_acceptances (user_id);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_legal_acceptances_user ON legal_acceptances (user_id);`);
+  await db.execute(sql28`
     INSERT INTO legal_documents (doc_type, version, effective_date, markdown_body)
     VALUES ('tos', ${SEED_LEGAL_VERSION}, ${SEED_LEGAL_EFFECTIVE_DATE}::timestamp, ${SEED_TOS_MARKDOWN})
     ON CONFLICT (doc_type, version) DO NOTHING;
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     INSERT INTO legal_documents (doc_type, version, effective_date, markdown_body)
     VALUES ('privacy', ${SEED_LEGAL_VERSION}, ${SEED_LEGAL_EFFECTIVE_DATE}::timestamp, ${SEED_PRIVACY_MARKDOWN})
     ON CONFLICT (doc_type, version) DO NOTHING;
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     INSERT INTO legal_acceptances (user_id, doc_type, version, accepted_at)
     SELECT u.id, 'tos', u.terms_version, u.terms_accepted_at
     FROM users u
@@ -16107,7 +18998,7 @@ async function runLegalDocumentMigrations() {
         WHERE la.user_id = u.id AND la.doc_type = 'tos' AND la.version = u.terms_version
       );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     INSERT INTO legal_acceptances (user_id, doc_type, version, accepted_at)
     SELECT u.id, 'privacy', ${SEED_LEGAL_VERSION}, u.terms_accepted_at
     FROM users u
@@ -16120,7 +19011,7 @@ async function runLegalDocumentMigrations() {
   `);
 }
 async function runSecurityEngineMigrations() {
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS split_versions (
       id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       contract_id     varchar NOT NULL,
@@ -16138,8 +19029,8 @@ async function runSecurityEngineMigrations() {
       UNIQUE (contract_id, version_number)
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_split_versions_contract ON split_versions (contract_id);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_split_versions_contract ON split_versions (contract_id);`);
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS split_signatures (
       id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       split_version_id uuid NOT NULL REFERENCES split_versions(id) ON DELETE CASCADE,
@@ -16160,7 +19051,7 @@ async function runSecurityEngineMigrations() {
       UNIQUE (split_version_id, signer_email)
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS fraud_events (
       id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       contract_id    varchar NOT NULL,
@@ -16173,8 +19064,8 @@ async function runSecurityEngineMigrations() {
       created_at     timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_fraud_events_contract ON fraud_events (contract_id);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_fraud_events_contract ON fraud_events (contract_id);`);
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS contract_risk_profiles (
       contract_id        varchar PRIMARY KEY,
       current_score      integer NOT NULL DEFAULT 0,
@@ -16186,7 +19077,7 @@ async function runSecurityEngineMigrations() {
       updated_at          timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS audit_log (
       id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id       varchar,
@@ -16202,8 +19093,8 @@ async function runSecurityEngineMigrations() {
       created_at    timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log (user_id, created_at DESC);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log (user_id, created_at DESC);`);
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS api_keys (
       id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       owner_id     varchar NOT NULL,
@@ -16218,8 +19109,8 @@ async function runSecurityEngineMigrations() {
       created_at   timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_api_keys_owner ON api_keys (owner_id);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_api_keys_owner ON api_keys (owner_id);`);
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS login_events (
       id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id     varchar NOT NULL,
@@ -16231,8 +19122,8 @@ async function runSecurityEngineMigrations() {
       created_at  timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_login_events_user ON login_events (user_id, created_at DESC);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_login_events_user ON login_events (user_id, created_at DESC);`);
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS user_devices (
       id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id      varchar NOT NULL,
@@ -16245,7 +19136,7 @@ async function runSecurityEngineMigrations() {
       UNIQUE (user_id, device_hash)
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS disputes (
       id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       contract_id       varchar NOT NULL,
@@ -16262,8 +19153,8 @@ async function runSecurityEngineMigrations() {
       updated_at        timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_disputes_contract ON disputes (contract_id);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_disputes_contract ON disputes (contract_id);`);
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS dispute_transitions (
       id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       dispute_id  uuid NOT NULL REFERENCES disputes(id) ON DELETE CASCADE,
@@ -16274,7 +19165,7 @@ async function runSecurityEngineMigrations() {
       created_at  timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS zk_ownership_proofs (
       proof_id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       contract_id        varchar NOT NULL,
@@ -16294,8 +19185,8 @@ async function runSecurityEngineMigrations() {
       created_at         timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_zk_proofs_contract ON zk_ownership_proofs (contract_id, version_number DESC);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_zk_proofs_contract ON zk_ownership_proofs (contract_id, version_number DESC);`);
+  await db.execute(sql28`
     ALTER TABLE contract_templates
       ADD COLUMN IF NOT EXISTS slug varchar,
       ADD COLUMN IF NOT EXISTS category varchar,
@@ -16315,14 +19206,14 @@ async function runSecurityEngineMigrations() {
       ADD COLUMN IF NOT EXISTS supported_transactions jsonb DEFAULT '[]'::jsonb,
       ADD COLUMN IF NOT EXISTS parent_template_id varchar;
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_contract_templates_type ON contract_templates (type);`);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_contract_templates_category ON contract_templates (category);`);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_contract_templates_status ON contract_templates (status);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_contract_templates_type ON contract_templates (type);`);
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_contract_templates_category ON contract_templates (category);`);
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_contract_templates_status ON contract_templates (status);`);
+  await db.execute(sql28`
     ALTER TABLE contracts
       ADD COLUMN IF NOT EXISTS template_version varchar;
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS template_audit_log (
       id          varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       template_id varchar REFERENCES contract_templates(id),
@@ -16333,7 +19224,7 @@ async function runSecurityEngineMigrations() {
       created_at  timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS license_records (
       id              varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       contract_id     varchar REFERENCES contracts(id),
@@ -16352,8 +19243,8 @@ async function runSecurityEngineMigrations() {
       created_at      timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_license_records_contract ON license_records (contract_id);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_license_records_contract ON license_records (contract_id);`);
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS voice_sessions (
       id              varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id         varchar NOT NULL REFERENCES users(id),
@@ -16370,8 +19261,8 @@ async function runSecurityEngineMigrations() {
       updated_at      timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_voice_sessions_user ON voice_sessions (user_id, created_at DESC);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_voice_sessions_user ON voice_sessions (user_id, created_at DESC);`);
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS voice_turns (
       id                    varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       session_id            varchar NOT NULL REFERENCES voice_sessions(id),
@@ -16390,8 +19281,8 @@ async function runSecurityEngineMigrations() {
       created_at            timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_voice_turns_session ON voice_turns (session_id, created_at);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_voice_turns_session ON voice_turns (session_id, created_at);`);
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS voice_pending_actions (
       id           varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       session_id   varchar NOT NULL REFERENCES voice_sessions(id),
@@ -16408,8 +19299,8 @@ async function runSecurityEngineMigrations() {
       created_at   timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_voice_pending_user ON voice_pending_actions (user_id, status);`);
-  await db.execute(sql19`
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_voice_pending_user ON voice_pending_actions (user_id, status);`);
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS voice_provenance (
       id                   varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       session_id           varchar REFERENCES voice_sessions(id),
@@ -16424,7 +19315,7 @@ async function runSecurityEngineMigrations() {
       created_at           timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`
+  await db.execute(sql28`
     CREATE TABLE IF NOT EXISTS voice_user_memory (
       id          varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id     varchar NOT NULL REFERENCES users(id),
@@ -16437,7 +19328,7 @@ async function runSecurityEngineMigrations() {
       updated_at  timestamp DEFAULT now()
     );
   `);
-  await db.execute(sql19`CREATE INDEX IF NOT EXISTS idx_voice_memory_user ON voice_user_memory (user_id, key);`);
+  await db.execute(sql28`CREATE INDEX IF NOT EXISTS idx_voice_memory_user ON voice_user_memory (user_id, key);`);
 }
 var SEED_TOS_MARKDOWN, SEED_PRIVACY_MARKDOWN, SEED_LEGAL_VERSION, SEED_LEGAL_EFFECTIVE_DATE;
 var init_db_migrations = __esm({
@@ -16612,6 +19503,8 @@ async function runBootMigrations() {
   await runCoreSchemaMigrations();
   await runSecurityEngineMigrations();
   await runLegalDocumentMigrations();
+  const { ensureProductionFeatureSchema: ensureProductionFeatureSchema2 } = await Promise.resolve().then(() => (init_feature_schema(), feature_schema_exports));
+  await ensureProductionFeatureSchema2();
   log2("Database schema up to date");
 }
 async function buildApp() {

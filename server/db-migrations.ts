@@ -217,6 +217,7 @@ export async function runCoreSchemaMigrations(): Promise<void> {
       confirmation_note  text,
       ip_address         varchar,
       user_agent         text,
+      legal_doc_version_id varchar,
       created_at         timestamp DEFAULT now(),
       updated_at         timestamp DEFAULT now()
     );
@@ -233,6 +234,10 @@ export async function runCoreSchemaMigrations(): Promise<void> {
   await db.execute(sql`
     ALTER TABLE split_confirmations
       ADD COLUMN IF NOT EXISTS consent_versions jsonb;
+  `);
+  await db.execute(sql`
+    ALTER TABLE split_confirmations
+      ADD COLUMN IF NOT EXISTS legal_doc_version_id varchar;
   `);
   await db.execute(sql`
     ALTER TABLE legal_acceptances

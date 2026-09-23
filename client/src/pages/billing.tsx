@@ -50,7 +50,7 @@ interface Contract {
 }
 
 // ── Plan config ───────────────────────────────────────────────────────────────
-type PlanKey = "free" | "session" | "pro" | "creator_pro" | "studio_pro";
+type PlanKey = "free" | "session" | "pro" | "creator_pro" | "studio_pro" | "enterprise";
 
 const PLANS: Record<PlanKey, { name: string; contractLimit: number | null }> = {
   free:        { name: "Starter Split", contractLimit: 1 },
@@ -58,6 +58,7 @@ const PLANS: Record<PlanKey, { name: string; contractLimit: number | null }> = {
   pro:         { name: "Multi-Creator", contractLimit: null },
   creator_pro: { name: "Creator Pro", contractLimit: null },
   studio_pro:  { name: "Studio Pro", contractLimit: null },
+  enterprise:  { name: "Enterprise", contractLimit: null },
 };
 
 const PLAN_FEATURES: Record<PlanKey, string[]> = {
@@ -66,6 +67,7 @@ const PLAN_FEATURES: Record<PlanKey, string[]> = {
   pro:         ["Up to 10 contributors", "Multi-round revisions", "Enhanced audit history", "Contributor reminders system", "Project dashboard", "Priority processing option", "Full exportable records"],
   creator_pro: ["Unlimited sessions (no per-session fee)", "Project history storage", "Saved contributor profiles", "Collaboration analytics", "Workflow automation tools", "Discounted premium exports"],
   studio_pro:  ["Unlimited projects and contributors", "Team management dashboard", "Role-based permissions", "Advanced audit logs", "Bulk exports", "Organization-level analytics", "Priority support"],
+  enterprise:  ["Unlimited projects", "Unlimited contributors", "Multi-team organization management", "Advanced role-based permissions", "Enterprise Rights Ledger", "Advanced audit history", "Bulk operations", "Advanced reporting", "API access and webhooks", "Custom onboarding and support"],
 };
 
 // ── Upgrade Dialog ────────────────────────────────────────────────────────────
@@ -80,12 +82,22 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
   async function handleUpgrade(plan: string) {
     setLoadingPlan(plan);
     try {
-      // Quote-based Multi-Creator — no self-serve Stripe subscription yet
+      // Quote-based and enterprise paths are handled as sales requests rather than
+      // self-serve Stripe subscriptions.
       if (plan === "pro") {
         window.location.href = multiCreatorQuoteMailto(quoteInterval);
         toast({
           title: "Request a quote",
           description: `Multi-Creator is quote-based. We opened an email for a ${quoteInterval === "year" ? "annual" : "monthly"} quote.`,
+        });
+        return;
+      }
+
+      if (plan === "enterprise") {
+        window.location.href = "/enterprise/demo";
+        toast({
+          title: "Request an Enterprise Demo",
+          description: "The enterprise demo form will open so you can tell us more about your workflow.",
         });
         return;
       }
@@ -182,7 +194,7 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
           role="region"
           aria-label="Available upgrade plans"
         >
-          {(["session", "pro", "creator_pro", "studio_pro"] as PlanKey[]).map((plan) => {
+          {(["session", "pro", "creator_pro", "studio_pro", "enterprise"] as PlanKey[]).map((plan) => {
             const cfg = PLANS[plan];
             const shown = displayPlanPrice(plan, plan === "session" || plan === "free" ? "month" : interval);
             const isCurrent    = plan === currentPlan;
@@ -240,7 +252,9 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
                         ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Starting…</>
                         : plan === "pro"
                           ? <><span>Get Quote</span><ArrowRight className="h-3 w-3 ml-1" /></>
-                          : <><span>Get Started</span><ArrowRight className="h-3 w-3 ml-1" /></>}
+                          : plan === "enterprise"
+                            ? <><span>Request Demo</span><ArrowRight className="h-3 w-3 ml-1" /></>
+                            : <><span>Get Started</span><ArrowRight className="h-3 w-3 ml-1" /></>}
                     </Button>
                   )}
                 </div>
@@ -259,8 +273,8 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
         <div className="shrink-0 px-6 py-3 border-t border-border bg-muted/20">
           <p className="text-xs text-muted-foreground text-center">
             Need more?{" "}
-            <a href="mailto:enterprise@splitsheet.ca" className="text-accent hover:underline">
-              For labels and publishers, contact us →
+            <a href="/enterprise/demo" className="text-accent hover:underline">
+              Request an Enterprise Demo →
             </a>
           </p>
         </div>

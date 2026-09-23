@@ -45,6 +45,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: "Workspace",
     items: [
       { href: "/", label: "Dashboard", icon: Home, testId: "nav-dashboard" },
+      { href: "/search", label: "Global Search", icon: BarChart3, testId: "nav-search" },
       { href: "/clients", label: "Clients", icon: Users, testId: "nav-clients" },
       { href: "/projects", label: "Projects", icon: FolderOpen, testId: "nav-projects" },
       { href: "/organizations", label: "Organizations", icon: Building2, testId: "nav-organizations" },

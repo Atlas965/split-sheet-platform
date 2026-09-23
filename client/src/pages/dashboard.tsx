@@ -1,13 +1,14 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import StatCard from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, FolderOpen, FileText } from "lucide-react";
+import { Plus, Users, FolderOpen, FileText, Clock3, CircleCheckBig, Sparkles } from "lucide-react";
 import WorkflowBanner from "@/components/WorkflowBanner";
 import { apiRequest } from "@/lib/queryClient";
+import { getProjectPriority, sortProjectQueue } from "@shared/dashboard-ops";
 
 interface DashboardStats {
   totalProjects?: number;
@@ -64,6 +65,15 @@ export default function Dashboard() {
     retry: false,
   });
 
+  const workQueue = useMemo(() => {
+    const list = Array.isArray(contracts) ? contracts : [];
+    return sortProjectQueue(list.map((contract) => ({
+      ...contract,
+      title: contract.title || "Untitled project",
+      status: contract.status || "draft",
+    }))); 
+  }, [contracts]);
+
   if (isLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -87,7 +97,7 @@ export default function Dashboard() {
             data-testid="stat-total-contracts"
           />
           <StatCard
-            title="Pending confirmation"
+            title="Needs attention"
             value={statsLoading ? "..." : (stats?.pendingConfirmation ?? stats?.pendingSignatures ?? 0).toString()}
             icon="fas fa-clock"
             iconBg="bg-yellow-100"
@@ -114,41 +124,55 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 bg-card p-6 rounded-xl border border-border">
-            <h3 className="text-lg font-semibold mb-4">Recent projects</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Priority work queue</h3>
+              <Link href="/search" className="text-xs text-primary hover:underline">
+                Search all records
+              </Link>
+            </div>
             <div className="space-y-4" data-testid="recent-activity">
               {contractsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
                 </div>
-              ) : contracts && contracts.length > 0 ? (
-                contracts.slice(0, 3).map((contract) => (
-                  <div key={contract.id} className="flex items-center space-x-4 p-4 bg-muted rounded-lg group hover:bg-muted/80 transition-colors">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      contract.status === 'signed' || contract.status === 'confirmed' ? 'bg-green-100' :
-                      contract.status === 'pending' || contract.status === 'pending_confirmation' ? 'bg-yellow-100' : 'bg-blue-100'
-                    }`}>
-                      <i className={`fas ${
-                        contract.status === 'signed' || contract.status === 'confirmed' ? 'fa-check text-green-600' :
-                        contract.status === 'pending' || contract.status === 'pending_confirmation' ? 'fa-clock text-yellow-600' : 'fa-plus text-blue-600'
-                      }`}></i>
+              ) : workQueue.length > 0 ? (
+                workQueue.slice(0, 4).map((contract) => {
+                  const priority = getProjectPriority(contract);
+                  const statusTone =
+                    contract.status === "pending_confirmation" || contract.status === "pending"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : contract.status === "confirmed" || contract.status === "signed"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-blue-100 text-blue-700";
+
+                  return (
+                    <div key={contract.id} className="flex items-center space-x-4 p-4 bg-muted rounded-lg group hover:bg-muted/80 transition-colors">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary/10 text-primary">
+                        {contract.status === "pending_confirmation" || contract.status === "pending" ? (
+                          <Clock3 className="h-4 w-4" />
+                        ) : contract.status === "confirmed" || contract.status === "signed" ? (
+                          <CircleCheckBig className="h-4 w-4" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium truncate">{contract.title}</p>
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${statusTone}`}>
+                            {priority.label}
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground text-sm">
+                          {contract.type || "Project"} • {new Date(contract.updatedAt || contract.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Link href={`/projects/${contract.id}`} className="text-xs text-primary hover:underline whitespace-nowrap">
+                        Open
+                      </Link>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{contract.title}</p>
-                      <p className="text-muted-foreground text-sm">
-                        {contract.status === 'signed' || contract.status === 'confirmed' ? 'Confirmed' :
-                         contract.status === 'pending' || contract.status === 'pending_confirmation' ? 'Pending confirmation' :
-                         contract.status === 'draft' ? 'Draft' : 'Updated'} •
-                        {new Date(contract.updatedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Link
-                      href={`/projects/${contract.id}`}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      Open
-                    </Link>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <i className="fas fa-file-contract text-4xl mb-4"></i>
@@ -185,7 +209,7 @@ export default function Dashboard() {
               <Button asChild variant="outline" className="w-full justify-start space-x-3 p-3" data-testid="button-create-contract">
                 <Link href="/templates">
                   <FileText className="h-4 w-4" />
-                  <span>Browse Entertainment Agreement Templates</span>
+                  <span>Browse Agreement Templates</span>
                 </Link>
               </Button>
             </div>

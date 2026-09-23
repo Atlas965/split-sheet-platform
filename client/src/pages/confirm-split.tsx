@@ -25,6 +25,13 @@ interface ConfirmPageData {
   collaboratorRole:    string;
   ownershipPercentage: number;
   expiresAt?:          string;
+  legalDocVersionId?:  string | null;
+  legalNotice?: {
+    versionId?: string | null;
+    summaryText?: string;
+    noticeText?: string;
+    fullNoticeUrl?: string;
+  };
   studio?: {
     name: string;
     logoUrl?: string | null;
@@ -274,6 +281,20 @@ export default function ConfirmSplit() {
           <p style={{ fontSize: "12px", color: "#5b7be8", marginBottom: 16 }}>
             You opened this confirmation from a Rights Capture QR code. No SplitSheet account is required.
           </p>
+        )}
+
+        {(data.legalNotice || data.legalDocVersionId) && (
+          <div style={{ marginBottom: 18, padding: "12px 14px", borderRadius: 10, background: "#f5f7ff", border: "1px solid #dfe6ff" }}>
+            <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#5b7be8", marginBottom: 6 }}>
+              Active legal notice
+            </p>
+            <p style={{ fontSize: "12px", color: "#1a1d2e", lineHeight: 1.5, marginBottom: 4 }}>
+              {data.legalNotice?.summaryText || data.legalNotice?.noticeText || "This confirmation records your acceptance as an electronic record."}
+            </p>
+            <p style={{ fontSize: "11px", color: "#67718b" }}>
+              Version ID: <strong>{data.legalNotice?.versionId ?? data.legalDocVersionId ?? "not recorded"}</strong>
+            </p>
+          </div>
         )}
 
         <hr style={styles.divider} />

@@ -11,3 +11,5 @@ vite.config.ts.*
 .config
 .local
 _check_tables.cjs
+.vercel
+.env*

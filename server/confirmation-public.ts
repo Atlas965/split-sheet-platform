@@ -13,6 +13,7 @@ import {
   recordWorkflowEvent,
   RSEE_ACTIONS,
 } from "./rights-state-engine";
+import { buildContributorLegalNotice } from "./legal-notice";
 
 function getIp(req: Request): string {
   return (
@@ -161,13 +162,13 @@ export async function handlePublicConfirmGet(
       ORDER BY created_at ASC
     `);
 
-    let contributorConsentVersion: string | null = null;
+    let contributorLegalDoc: any = null;
     try {
-      const consent = await storage.getLatestLegalDocument("contributor_consent");
-      contributorConsentVersion = consent?.version ?? null;
+      contributorLegalDoc = await storage.getLatestLegalDocument("contributor_consent");
     } catch {
       /* optional */
     }
+    const legalNotice = buildContributorLegalNotice(contributorLegalDoc ?? null);
 
     await recordConfirmationAccess(req, { id: row.id, contract_id: resolvedContractId }, method);
 
@@ -188,7 +189,14 @@ export async function handlePublicConfirmGet(
       collaboratorRole: row.role,
       ownershipPercentage: Number(row.ownership_percentage),
       expiresAt: row.expires_at,
-      contributorConsentVersion,
+      legalDocVersionId: legalNotice.versionId,
+      contributorConsentVersion: legalNotice.version,
+      legalNotice: {
+        versionId: legalNotice.versionId,
+        summaryText: legalNotice.summaryText,
+        noticeText: legalNotice.noticeText,
+        fullNoticeUrl: legalNotice.fullNoticeUrl,
+      },
       accessMethod: method,
       allCollaborators: (allCollabs.rows as any[]).map((c) => ({
         name: c.name,
@@ -272,11 +280,13 @@ export async function handlePublicConfirmPost(
     const method = accessMethodFromRequest(req.query.via, bodyMethod);
 
     let consentVersions: Record<string, string> | null = null;
+    let activeLegalDocVersionId: string | null = null;
     try {
       const consent = await storage.getLatestLegalDocument("contributor_consent");
       if (consent?.version) {
         consentVersions = { contributor_consent: consent.version };
       }
+      activeLegalDocVersionId = consent?.version ?? consent?.id ?? null;
     } catch {
       /* optional evidence */
     }
@@ -298,6 +308,7 @@ export async function handlePublicConfirmPost(
         confirmed_at      = NOW(),
         consumed_at       = COALESCE(${consumedAt}, consumed_at),
         consent_versions  = COALESCE(${consentJson}::jsonb, consent_versions),
+        legal_doc_version_id = COALESCE(${activeLegalDocVersionId}, legal_doc_version_id),
         updated_at        = NOW()
       WHERE id = ${row.id}
         AND revoked_at IS NULL
@@ -367,6 +378,7 @@ export async function handlePublicConfirmPost(
         action: newStatus,
         accessMethod: method,
         hasConsentVersions: !!consentVersions,
+        legalDocVersionId: activeLegalDocVersionId,
       },
       req,
     });
@@ -392,6 +404,7 @@ export async function handlePublicConfirmPost(
     res.json({
       success: true,
       action: newStatus,
+      legalDocVersionId: activeLegalDocVersionId,
       message: action === "confirm"
         ? `Thank you${name ? ` ${name}` : ""}! Your confirmation for "${row.contract_title}" has been recorded.`
         : "Your change request has been recorded. The operator will follow up.",

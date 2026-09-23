@@ -32,7 +32,9 @@ import TermsGate from "@/components/TermsGate";
 import OperatorLayout from "@/components/OperatorLayout";
 import ClientDetail from "@/pages/client-detail";
 import ProjectDetail from "@/pages/project-detail";
+import Search from "@/pages/search";
 import StudioPublic from "@/pages/studio-public";
+import EnterpriseDemo from "@/pages/enterprise-demo";
 
 function RedirectTo({ href }: { href: string }) {
   const [, setLocation] = useLocation();
@@ -79,7 +81,8 @@ function AuthenticatedRoutes() {
         <Route path="/matches" component={() => <RedirectTo href="/" />} />
         <Route path="/messages" component={() => <RedirectTo href="/" />} />
         <Route path="/messages/:userId" component={() => <RedirectTo href="/" />} />
-        <Route path="/search" component={() => <RedirectTo href="/" />} />
+        <Route path="/search" component={Search} />
+        <Route path="/enterprise/demo" component={EnterpriseDemo} />
         <Route path="/creators" component={() => <RedirectTo href="/clients" />} />
         <Route path="/creators/:id" component={() => <RedirectTo href="/clients" />} />
         <Route path="/contract/:type" component={ContractForm} />
@@ -113,6 +116,7 @@ function Router() {
         <Route path="/confirm/:contractId/:token" component={ConfirmSplit} />
         <Route path="/confirm/:token" component={ConfirmSplit} />
         <Route path="/studio/:id" component={StudioPublic} />
+        <Route path="/enterprise/demo" component={EnterpriseDemo} />
         {isAuthenticated && <Route component={AuthenticatedRoutes} />}
         <Route path="/login" component={Login} />
         <Route path="/" component={Landing} />

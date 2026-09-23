@@ -88,7 +88,7 @@ export function mapStripePriceIdToPlan(
 }
 
 export function displayPlanPrice(
-  plan: "free" | "session" | "pro" | "creator_pro" | "studio_pro",
+  plan: "free" | "session" | "pro" | "creator_pro" | "studio_pro" | "enterprise",
   interval: BillingInterval,
 ): {
   price: string;
@@ -141,6 +141,14 @@ export function displayPlanPrice(
           monthlyEquivalent: null,
           saveBadge: null,
         };
+  }
+  if (plan === "enterprise") {
+    return {
+      price: "Custom pricing",
+      billing: "Annual contract / quote-based",
+      monthlyEquivalent: null,
+      saveBadge: null,
+    };
   }
   return interval === "year"
     ? {

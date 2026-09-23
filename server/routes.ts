@@ -61,6 +61,7 @@ import {
 } from "@shared/billing-interval";
 import { syncAgreementToRightsLedger } from "./agreement-ledger";
 import { isDraftableStatus, validateTemplateFieldValues } from "@shared/agreement-catalog";
+import { matchesSearchText, sortProjectQueue } from "@shared/dashboard-ops";
 import { isAdmin } from "./adminAuth";
 import { registerRightsLedgerRoutes } from "./rights-ledger-routes";
 import { auditLog } from "./security";
@@ -1260,6 +1261,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     },
   );
+
+  app.get("/api/search", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const query = String(req.query.q ?? "").trim();
+      const [contracts, assets] = await Promise.all([
+        storage.getContracts(userId),
+        storage.getSongAssets(userId),
+      ]);
+
+      const results = sortProjectQueue([
+        ...contracts.map((contract) => ({
+          id: contract.id,
+          title: contract.title,
+          status: contract.status,
+          type: contract.type || "project",
+          description: `Project · ${contract.type || "Split sheet"}`,
+          updatedAt: contract.updatedAt,
+          createdAt: contract.createdAt,
+          url: `/projects/${contract.id}`,
+        })),
+        ...assets.map((asset) => ({
+          id: asset.id,
+          title: asset.title,
+          status: asset.status,
+          type: "rights-ledger",
+          artistName: asset.artistName,
+          description: `Rights ledger · ${asset.artistName || "Catalog asset"}`,
+          updatedAt: asset.updatedAt,
+          createdAt: asset.createdAt,
+          url: `/ownership/${asset.id}`,
+        })),
+      ])
+        .filter((item) => (query ? matchesSearchText(query, item) : true))
+        .slice(0, 12)
+        .map((item) => ({
+          ...item,
+          label: item.status ? String(item.status).replace(/[_-]/g, " ") : "active",
+        }));
+
+      res.json({ results, total: results.length, query });
+    } catch (error) {
+      console.error("Error fetching search results:", error);
+      res.status(500).json({ message: "Failed to fetch search results" });
+    }
+  });
 
   // Dashboard stats route
   app.get("/api/dashboard/stats", isAuthenticated, async (req: any, res) => {
