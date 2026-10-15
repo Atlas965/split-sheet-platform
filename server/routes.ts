@@ -775,7 +775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // UI plan keys (billing.tsx) + legacy Stripe keys
         const rawPlan = String(req.body?.plan || "creator_pro");
         const planAliases: Record<string, string> = {
-          pro: "pro", // Multi-Creator (quote)
+          pro: "pro", // Multi-Creator
           label: "studio_pro", // legacy
           session: "session",
           creator_pro: "creator_pro",
@@ -785,7 +785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!plan) {
           return res.status(400).json({
             error: {
-              message: `Invalid plan: ${rawPlan}. Use session, creator_pro, or studio_pro.`,
+              message: `Invalid plan: ${rawPlan}. Use session, pro, creator_pro, or studio_pro.`,
             },
           });
         }
@@ -800,17 +800,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: { message: intervalAllowed.message } });
         }
 
-        // Multi-Creator is quote-based — do not create a Stripe subscription here
-        if (plan === "pro") {
-          return res.json({
-            quoteRequired: true,
-            plan,
-            interval,
-            message:
-              "Multi-Creator is quote-based. Contact enterprise@splitsheet.ca for monthly or annual pricing.",
-          });
-        }
-
         const planPricing: Record<
           string,
           { amount: number; name: string; envKey: string }
@@ -819,6 +808,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             amount: PLAN_PRICE_CENTS.session.month,
             name: "Pay-Per-Session",
             envKey: "STRIPE_SESSION_PRICE_ID",
+          },
+          pro: {
+            amount:
+              interval === "year"
+                ? PLAN_PRICE_CENTS.pro.year
+                : PLAN_PRICE_CENTS.pro.month,
+            name: "Multi-Creator",
+            envKey:
+              interval === "year"
+                ? "STRIPE_MULTI_CREATOR_ANNUAL_PRICE_ID"
+                : "STRIPE_MULTI_CREATOR_PRICE_ID",
           },
           creator_pro: {
             amount:

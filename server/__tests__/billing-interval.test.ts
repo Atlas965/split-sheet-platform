@@ -5,6 +5,7 @@ import {
   displayPlanPrice,
   mapStripePriceIdToPlan,
   parseBillingInterval,
+  PLAN_PRICE_CENTS,
   resolveStripePriceId,
 } from "../../shared/billing-interval";
 
@@ -52,6 +53,22 @@ describe("pricing page display", () => {
     expect(displayPlanPrice("creator_pro", "month").price).toBe("$15 CAD/mo");
     expect(displayPlanPrice("studio_pro", "month").price).toBe("$49 CAD/mo");
   });
+
+  it("shows fixed Multi-Creator monthly and annual pricing", () => {
+    expect(PLAN_PRICE_CENTS.pro).toEqual({ month: 5000, year: 60000 });
+    expect(displayPlanPrice("pro", "month")).toMatchObject({
+      price: "$50 CAD/mo",
+      billing: "Billed monthly in CAD",
+      monthlyEquivalent: null,
+      saveBadge: null,
+    });
+    expect(displayPlanPrice("pro", "year")).toMatchObject({
+      price: "$600 CAD/year",
+      billing: "Billed annually in CAD",
+      monthlyEquivalent: "$50 CAD/mo",
+      saveBadge: null,
+    });
+  });
 });
 
 describe("Stripe price ID resolution and webhook mapping", () => {
@@ -61,20 +78,32 @@ describe("Stripe price ID resolution and webhook mapping", () => {
     STRIPE_PRICE_CREATOR_PRO_ANNUAL: "price_creator_year",
     STRIPE_PRICE_STUDIO_PRO_ANNUAL: "price_studio_year",
     STRIPE_SESSION_PRICE_ID: "price_session",
+    STRIPE_MULTI_CREATOR_PRICE_ID: "price_multi_creator_month",
+    STRIPE_MULTI_CREATOR_ANNUAL_PRICE_ID: "price_multi_creator_year",
     STRIPE_PRO_PRICE_ID: "price_legacy_pro",
   };
 
   it("selects monthly price IDs", () => {
+    expect(resolveStripePriceId("pro", "month", env)).toBe("price_multi_creator_month");
     expect(resolveStripePriceId("creator_pro", "month", env)).toBe("price_creator_month");
     expect(resolveStripePriceId("studio_pro", "month", env)).toBe("price_studio_month");
   });
 
   it("selects annual price IDs", () => {
+    expect(resolveStripePriceId("pro", "year", env)).toBe("price_multi_creator_year");
     expect(resolveStripePriceId("creator_pro", "year", env)).toBe("price_creator_year");
     expect(resolveStripePriceId("studio_pro", "year", env)).toBe("price_studio_year");
   });
 
   it("maps annual and monthly price IDs back to the same plan tier", () => {
+    expect(mapStripePriceIdToPlan("price_multi_creator_year", env)).toEqual({
+      tier: "pro",
+      interval: "year",
+    });
+    expect(mapStripePriceIdToPlan("price_multi_creator_month", env)).toEqual({
+      tier: "pro",
+      interval: "month",
+    });
     expect(mapStripePriceIdToPlan("price_creator_year", env)).toEqual({
       tier: "creator_pro",
       interval: "year",

@@ -17,7 +17,6 @@ import {
 import BillingIntervalToggle from "@/components/BillingIntervalToggle";
 import {
   displayPlanPrice,
-  multiCreatorQuoteMailto,
   type BillingInterval,
 } from "@shared/billing-interval";
 
@@ -77,22 +76,10 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
   const { toast } = useToast();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [interval, setInterval] = useState<BillingInterval>("month");
-  const [quoteInterval, setQuoteInterval] = useState<BillingInterval>("month");
 
   async function handleUpgrade(plan: string) {
     setLoadingPlan(plan);
     try {
-      // Quote-based and enterprise paths are handled as sales requests rather than
-      // self-serve Stripe subscriptions.
-      if (plan === "pro") {
-        window.location.href = multiCreatorQuoteMailto(quoteInterval);
-        toast({
-          title: "Request a quote",
-          description: `Multi-Creator is quote-based. We opened an email for a ${quoteInterval === "year" ? "annual" : "monthly"} quote.`,
-        });
-        return;
-      }
-
       if (plan === "enterprise") {
         window.location.href = "/enterprise/demo";
         toast({
@@ -112,14 +99,6 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
           title:       "Could not start upgrade",
           description: data.error.message,
           variant:     "destructive",
-        });
-        return;
-      }
-
-      if (data?.quoteRequired) {
-        toast({
-          title: "Request a quote",
-          description: data.message || "Contact enterprise@splitsheet.ca for this plan.",
         });
         return;
       }
@@ -224,21 +203,6 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
                       <p className="text-xs text-muted-foreground">{shown.monthlyEquivalent} equivalent</p>
                     )}
                     <p className="text-xs text-muted-foreground">{shown.billing}</p>
-                    {plan === "pro" && (
-                      <label className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>Quote term</span>
-                        <select
-                          aria-label="Multi-Creator quote billing interval"
-                          className="rounded-md border border-border bg-background px-2 py-1 text-foreground"
-                          value={quoteInterval}
-                          onChange={(e) => setQuoteInterval(e.target.value as BillingInterval)}
-                          data-testid="multi-creator-quote-interval"
-                        >
-                          <option value="month">Monthly</option>
-                          <option value="year">Annual</option>
-                        </select>
-                      </label>
-                    )}
                   </div>
                   {!isCurrent && (
                     <Button
@@ -250,11 +214,9 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
                     >
                       {isLoading
                         ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Starting…</>
-                        : plan === "pro"
-                          ? <><span>Get Quote</span><ArrowRight className="h-3 w-3 ml-1" /></>
-                          : plan === "enterprise"
-                            ? <><span>Request Demo</span><ArrowRight className="h-3 w-3 ml-1" /></>
-                            : <><span>Get Started</span><ArrowRight className="h-3 w-3 ml-1" /></>}
+                        : plan === "enterprise"
+                          ? <><span>Request Demo</span><ArrowRight className="h-3 w-3 ml-1" /></>
+                          : <><span>Get Started</span><ArrowRight className="h-3 w-3 ml-1" /></>}
                     </Button>
                   )}
                 </div>

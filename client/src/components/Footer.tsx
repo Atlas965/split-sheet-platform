@@ -606,6 +606,26 @@ export default function Footer() {
                 </button>
               ))}
             </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <p
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "var(--muted-foreground)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                Support
+              </p>
+              <a
+                href="mailto:support@splitsheet.ca"
+                style={{ fontSize: "13px", color: "var(--muted-foreground)" }}
+              >
+                support@splitsheet.ca
+              </a>
+            </div>
           </div>
 
           {/* Divider */}

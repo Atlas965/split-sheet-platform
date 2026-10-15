@@ -13,7 +13,7 @@ import { MVP_TEMPLATE_SPECS, MVP_TEMPLATE_TYPES, PHASE2_WAIT_TEMPLATES } from "@
 export const COPILOT_PRICING = [
   "• **Starter (Free)** — $0: 1 project, up to 2 contributors",
   "• **Pay-Per-Session** — $25 CAD/session: up to 5 contributors, full workflow + PDF",
-  "• **Multi-Creator** — $50–75 CAD/project: up to 10 contributors, quote-based",
+  "• **Multi-Creator** — $50 CAD/month or $600 CAD/year: up to 10 contributors, self-serve subscription",
   "• **Express add-on** — +$25 CAD: priority processing per session",
   "• **Creator Pro** — $15 CAD/month or $150 CAD/year (save 2 months)",
   "• **Studio Pro** — $49 CAD/month or $490 CAD/year (save 2 months)",

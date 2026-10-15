@@ -334,13 +334,13 @@ SplitSheet uses a **hybrid three-layer pricing model**:
 |---|---|---|
 | **Starter Access** | $0 CAD | 1 project, up to 2 contributors, full workflow |
 | **Pay-Per-Session** | $25 CAD | Per completed session, up to 5 contributors |
-| **Multi-Creator Project** | $50–$75 CAD | Up to 10 contributors, quote-based on complexity |
 | **Express Add-On** | +$25 CAD | Priority processing, fast confirmation flow |
 
 ### Layer 2 — Subscription (Recurring SaaS)
 
 | Tier | Price | Details |
 |---|---|---|
+| **Multi-Creator** | $50 CAD/month or $600 CAD/year | Up to 10 contributors, self-serve subscription |
 | **Creator Pro** | $15 CAD/month | Unlimited sessions, project history, saved contributors, analytics |
 | **Studio Pro** | $49 CAD/month | Team management, role-based permissions, bulk exports, priority support |
 
@@ -514,7 +514,7 @@ Stripe handles all payment processing.
 |---|---|---|
 | `free` | (no Stripe product) | $0 |
 | `session` | Session billing | $25 CAD per session |
-| `pro` | Multi-Creator | $50–75 CAD quote |
+| `pro` | Multi-Creator | $50 CAD/month or $600 CAD/year |
 | `creator_pro` | Creator Pro | $15 CAD/month |
 | `studio_pro` | Studio Pro | $49 CAD/month |
 

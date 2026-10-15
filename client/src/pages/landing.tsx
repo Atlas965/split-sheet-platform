@@ -7,7 +7,6 @@ import OperatorWorkspaceDemo from "@/components/landing/OperatorWorkspaceDemo";
 import { MotionCta, Reveal } from "@/components/landing/LandingMotion";
 import {
   displayPlanPrice,
-  multiCreatorQuoteMailto,
   type BillingInterval,
 } from "@shared/billing-interval";
 
@@ -45,7 +44,7 @@ const OPERATOR_PLANS = [
     name: "Multi-Creator",
     features: [
       "Better for operators managing multiple contributors",
-      "Quote-based setup for complex ownership structures",
+      "$50 CAD per month with self-serve checkout",
       "Project-level coordination and contributor follow-up",
       "Enhanced audit history and operational traceability",
       "Supports teams, labels, and rights administrators",
@@ -106,10 +105,10 @@ const PLAN_WINDOWS = [
     details: [
       "Coordinate contributors across multiple projects",
       "Track ownership and confirmations in one operating view",
-      "Create a single quote-based path for complex workflows",
+      "Manage creator workflows with predictable monthly pricing",
     ],
-    href: (interval: BillingInterval) => multiCreatorQuoteMailto(interval),
-    cta: "Request a quote",
+    href: (interval: BillingInterval) => `/subscribe?plan=pro&interval=${interval}`,
+    cta: "Choose Multi-Creator",
     featured: false,
   },
   {
@@ -173,7 +172,7 @@ const PLAN_COMPARISON = [
     feature: "Typical path",
     values: {
       starter: "Get started quickly",
-      multi: "Quote-based ops",
+      multi: "Self-serve subscription",
       creator: "Self-serve growth",
       studio: "Team operations",
       enterprise: "Custom rollout",
@@ -229,8 +228,8 @@ const PLAN_PROS_CONS = [
   },
   {
     plan: "Multi-Creator",
-    benefits: ["Built for operational scale", "Structured contributor management", "Quote-based flexibility"],
-    disadvantages: ["More coordination required", "Not as custom as enterprise", "Quote-based onboarding"],
+    benefits: ["Built for operational scale", "Structured contributor management", "Predictable $50 monthly pricing"],
+    disadvantages: ["More coordination required", "Not as custom as enterprise", "Fewer custom controls than Enterprise"],
   },
   {
     plan: "Creator Pro",
@@ -287,7 +286,6 @@ const SOCIAL_PROOF = [
 
 export default function Landing() {
   const [interval, setInterval] = useState<BillingInterval>("month");
-  const [quoteInterval, setQuoteInterval] = useState<BillingInterval>("month");
   const reduce = useReducedMotion();
 
   return (
@@ -721,19 +719,6 @@ export default function Landing() {
                 Operators pay for the workspace in CAD. Contributors do not need a paid account. Save 2 months with annual billing on Creator Pro and Studio Pro.
               </p>
             </div>
-            <div className="flex items-center gap-3 rounded-full border border-border bg-card/90 px-3 py-2 text-sm text-muted-foreground shadow-sm">
-              <span className="font-medium text-foreground">Quote term</span>
-              <select
-                aria-label="Multi-Creator quote billing interval"
-                className="rounded-md border border-border bg-background px-2 py-1 text-foreground outline-none ring-0"
-                value={quoteInterval}
-                onChange={(e) => setQuoteInterval(e.target.value as BillingInterval)}
-                data-testid="landing-quote-interval"
-              >
-                <option value="month">Monthly</option>
-                <option value="year">Annual</option>
-              </select>
-            </div>
           </div>
 
           <div className="mt-8 flex flex-wrap gap-2">
@@ -749,8 +734,8 @@ export default function Landing() {
 
           <div className="mt-8 grid gap-5 lg:grid-cols-2">
             {PLAN_WINDOWS.map((plan) => {
-              const shown = displayPlanPrice(plan.key, quoteInterval);
-              const href = plan.href(quoteInterval);
+              const shown = displayPlanPrice(plan.key, interval);
+              const href = plan.href(interval);
 
               return (
                 <motion.article
@@ -828,7 +813,7 @@ export default function Landing() {
                 plan.key === "enterprise"
                   ? "/enterprise/demo"
                   : plan.key === "pro"
-                    ? multiCreatorQuoteMailto(quoteInterval)
+                    ? `/subscribe?plan=pro&interval=${interval}`
                     : plan.key === "creator_pro" || plan.key === "studio_pro"
                       ? `/subscribe?plan=${plan.key}&interval=${interval}`
                       : "/login";
@@ -878,9 +863,7 @@ export default function Landing() {
                   >
                     {plan.key === "enterprise"
                       ? "Request an Enterprise Demo"
-                      : plan.key === "pro"
-                        ? "Request a Quote"
-                        : "Get Started"}
+                      : "Get Started"}
                   </MotionCta>
                 </motion.div>
               );
@@ -970,16 +953,10 @@ export default function Landing() {
 
           <div className="mt-8 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <p>
-              Multi-Creator ($50–$75 CAD, quote-based), custom operator plans, and
-              Enterprise deployments are available.
+              Multi-Creator is $50 CAD per month, with annual billing available for $600 CAD.
+              Enterprise deployments are available with custom pricing.
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              <a
-                href={multiCreatorQuoteMailto(quoteInterval)}
-                className="font-medium text-accent underline-offset-2 hover:underline"
-              >
-                Request a quote
-              </a>
               <a
                 href="/enterprise/demo"
                 className="font-medium text-accent underline-offset-2 hover:underline"

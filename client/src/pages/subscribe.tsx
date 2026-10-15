@@ -17,13 +17,15 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 // ── Plan display config ────────────────────────────────────────────────────────
 function planDisplay(planKey: string, interval: BillingInterval) {
-  if (planKey === "creator_pro" || planKey === "studio_pro") {
+  if (planKey === "pro" || planKey === "creator_pro" || planKey === "studio_pro") {
     const shown = displayPlanPrice(planKey, interval);
     return {
-      label: planKey === "studio_pro" ? "Studio Pro" : "Creator Pro",
+      label: planKey === "pro" ? "Multi-Creator" : planKey === "studio_pro" ? "Studio Pro" : "Creator Pro",
       price: shown.price,
       features:
-        planKey === "studio_pro"
+        planKey === "pro"
+          ? ["Up to 10 contributors", "Multi-round revisions", "Enhanced audit history", "Contributor reminders", "Project dashboard"]
+          : planKey === "studio_pro"
           ? ["Unlimited projects and contributors", "Team management dashboard", "Role-based permissions", "Priority support"]
           : ["Unlimited sessions", "Project history storage", "Saved contributor profiles", "Discounted premium exports"],
     };

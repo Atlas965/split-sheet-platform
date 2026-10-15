@@ -35,12 +35,15 @@ export function assertPlanAllowsInterval(
 
 export const PLAN_PRICE_CENTS = {
   session: { month: 2500 },
+  pro: { month: 5000, year: 60000 },
   creator_pro: { month: 1500, year: 15000 },
   studio_pro: { month: 4900, year: 49000 },
 } as const;
 
 export function stripePriceEnvKeys(plan: string, interval: BillingInterval): string[] {
   if (plan === "session") return ["STRIPE_SESSION_PRICE_ID"];
+  if (plan === "pro" && interval === "year") return ["STRIPE_MULTI_CREATOR_ANNUAL_PRICE_ID"];
+  if (plan === "pro") return ["STRIPE_MULTI_CREATOR_PRICE_ID"];
   if (plan === "creator_pro" && interval === "year") {
     return ["STRIPE_PRICE_CREATOR_PRO_ANNUAL", "STRIPE_CREATOR_PRO_ANNUAL_PRICE_ID"];
   }
@@ -74,8 +77,10 @@ export function mapStripePriceIdToPlan(
 ): { tier: string; interval: BillingInterval } | null {
   if (!priceId) return null;
   const pairs: Array<{ tier: string; interval: BillingInterval }> = [
+    { tier: "pro", interval: "year" },
     { tier: "creator_pro", interval: "year" },
     { tier: "studio_pro", interval: "year" },
+    { tier: "pro", interval: "month" },
     { tier: "creator_pro", interval: "month" },
     { tier: "studio_pro", interval: "month" },
     { tier: "session", interval: "month" },
@@ -115,14 +120,14 @@ export function displayPlanPrice(
   if (plan === "pro") {
     return interval === "year"
       ? {
-          price: "$50–$75 CAD/mo",
-          billing: "Quote-based · ask for an annual term",
-          monthlyEquivalent: null,
-          saveBadge: "Annual option on quote",
+          price: "$600 CAD/year",
+          billing: "Billed annually in CAD",
+          monthlyEquivalent: "$50 CAD/mo",
+          saveBadge: null,
         }
       : {
-          price: "$50–$75 CAD/mo",
-          billing: "Per project · quote-based",
+          price: "$50 CAD/mo",
+          billing: "Billed monthly in CAD",
           monthlyEquivalent: null,
           saveBadge: null,
         };
@@ -163,13 +168,4 @@ export function displayPlanPrice(
         monthlyEquivalent: null,
         saveBadge: null,
       };
-}
-
-export function multiCreatorQuoteMailto(interval: BillingInterval): string {
-  const term = interval === "year" ? "annual" : "monthly";
-  const subject = encodeURIComponent(`Multi-Creator plan quote (${term})`);
-  const body = encodeURIComponent(
-    `I would like a Multi-Creator quote.\n\nPreferred billing: ${term}\nCurrency: CAD\n\nStudio / operator name:\nEstimated creators:\n`,
-  );
-  return `mailto:enterprise@splitsheet.ca?subject=${subject}&body=${body}`;
 }
