@@ -99,9 +99,9 @@ const PLAN_WINDOWS = [
   {
     key: "pro" as const,
     title: "Multi-Creator",
-    eyebrow: "For operators and admins",
+    eyebrow: "For producers, songwriters, managers, and independent operators",
     useCase:
-      "Best for labels, managers, studios, and independent operators handling multiple creators, collaborators, and complex ownership structures in one workflow.",
+      "Manage multiple contributors and projects, coordinate confirmations, and maintain organized ownership records through one workflow.",
     details: [
       "Coordinate contributors across multiple projects",
       "Track ownership and confirmations in one operating view",
@@ -142,7 +142,7 @@ const PLAN_COMPARISON = [
     feature: "Best for",
     values: {
       starter: "Solo operators",
-      multi: "Labels & managers",
+      multi: "Producers & managers",
       creator: "Independent creators",
       studio: "Growing teams",
       enterprise: "Large organizations",
@@ -277,11 +277,11 @@ const TRUST_BADGES = [
 ] as const;
 
 const SOCIAL_PROOF = [
-  "Studios",
-  "Labels",
-  "Independent producers",
+  "Songwriters",
+  "Producers",
+  "Engineers",
+  "Managers",
   "Rights administrators",
-  "Creative operators",
 ] as const;
 
 export default function Landing() {
@@ -348,9 +348,11 @@ export default function Landing() {
               Music rights documentation, built for the people who run it.
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
-              SplitSheet helps studios, producers, and labels manage splits,
-              agreements, contributor confirmations, evidence, and rights records
-              in one operator-managed workflow.
+              SplitSheet helps songwriters, producers, engineers, and managers
+              document ownership splits, agreements, contributor confirmations,
+              and supporting evidence in one organized workflow. Keep project
+              records together without requiring every contributor to create an
+              account.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <MotionCta href="/login">Get Started</MotionCta>
@@ -512,21 +514,25 @@ export default function Landing() {
             Who it is for
           </h2>
           <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
-            Built for operators who manage rights workflows for other people.
+            Built for the people who create, produce, engineer, and manage music projects.
           </p>
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
+          <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {[
               {
-                title: "Studios",
-                body: "Manage split sheets and contributor documentation across projects.",
+                title: "Songwriters",
+                body: "Document your agreed ownership splits and keep contributor confirmations organized, even when a song is created across multiple sessions and studios.",
               },
               {
-                title: "Producers",
-                body: "Keep collaborator information, agreements, confirmations, and rights records organized.",
+                title: "Producers & beatmakers",
+                body: "Keep collaborator information, agreements, confirmations, and rights records organized for every project.",
               },
               {
-                title: "Labels / music administrators",
-                body: "Manage documentation and rights workflows across multiple creators and projects.",
+                title: "Engineers",
+                body: "Document session details and contributions as work happens, helping keep important project information from getting lost after the final bounce.",
+              },
+              {
+                title: "Managers",
+                body: "Coordinate documentation and contributor confirmations across multiple artists, projects, and collaborators.",
               },
             ].map((card, i) => (
               <motion.div
