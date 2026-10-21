@@ -1,6 +1,6 @@
 # SplitSheet
 
-Operator-managed music rights documentation and confirmation workflows for studios, producers, labels, and rights teams working with contributors and artists.
+Operator-managed music rights documentation and confirmation workflows for songwriters, producers, audio engineers, labels, and rights teams working with contributors and artists.
 
 Built by SoundLedger Technologies Inc. (Ontario, Canada) · Live: [splitsheet.ca](https://splitsheet.ca)
 
