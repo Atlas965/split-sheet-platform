@@ -117,6 +117,12 @@ function Router() {
         <Route path="/confirm/:token" component={ConfirmSplit} />
         <Route path="/studio/:id" component={StudioPublic} />
         <Route path="/enterprise/demo" component={EnterpriseDemo} />
+        {!isAuthenticated && (
+          <Route
+            path="/ownership"
+            component={() => <RedirectTo href="/login" />}
+          />
+        )}
         {isAuthenticated && <Route component={AuthenticatedRoutes} />}
         <Route path="/login" component={Login} />
         <Route path="/" component={Landing} />
