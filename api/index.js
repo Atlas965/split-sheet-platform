@@ -8828,7 +8828,7 @@ var init_workspace_reset = __esm({
 function normalizePlanTier(tier) {
   const t = (tier || "free").toLowerCase();
   if (t === "starter") return "free";
-  if (t === "label") return "studio_pro";
+  if (t === "label" || t === "pro") return "studio_pro";
   return t;
 }
 function projectLimitForTier(tier) {
@@ -9379,7 +9379,6 @@ var init_copilot_knowledge = __esm({
     COPILOT_PRICING = [
       "\u2022 **Starter (Free)** \u2014 $0: 1 project, up to 2 contributors",
       "\u2022 **Pay-Per-Session** \u2014 $25 CAD/session: up to 5 contributors, full workflow + PDF",
-      "\u2022 **Multi-Creator** \u2014 $50\u201375 CAD/project: up to 10 contributors, quote-based",
       "\u2022 **Express add-on** \u2014 +$25 CAD: priority processing per session",
       "\u2022 **Creator Pro** \u2014 $15 CAD/month or $150 CAD/year (save 2 months)",
       "\u2022 **Studio Pro** \u2014 $49 CAD/month or $490 CAD/year (save 2 months)",
@@ -15877,6 +15876,22 @@ function assertPlanAllowsInterval(plan, interval) {
   }
   return { ok: true };
 }
+function normalizeCheckoutPlan(raw) {
+  const value = String(raw || "creator_pro").toLowerCase().trim();
+  if (value === "session" || value === "single_session" || value === "pay_per_session") {
+    return { ok: true, plan: "session" };
+  }
+  if (value === "creator_pro" || value === "creator") {
+    return { ok: true, plan: "creator_pro" };
+  }
+  if (value === "studio_pro" || value === "label" || value === "pro") {
+    return { ok: true, plan: "studio_pro" };
+  }
+  return {
+    ok: false,
+    message: `Invalid plan: ${value}. Use session, creator_pro, or studio_pro.`
+  };
+}
 function stripePriceEnvKeys(plan, interval) {
   if (plan === "session") return ["STRIPE_SESSION_PRICE_ID"];
   if (plan === "creator_pro" && interval === "year") {
@@ -15912,6 +15927,12 @@ function mapStripePriceIdToPlan(priceId, env = process.env) {
   for (const pair of pairs) {
     const resolved = resolveStripePriceId(pair.tier, pair.interval, env);
     if (resolved && resolved === priceId) return pair;
+  }
+  if (env.STRIPE_MULTI_CREATOR_ANNUAL_PRICE_ID === priceId) {
+    return { tier: "pro", interval: "year" };
+  }
+  if (env.STRIPE_MULTI_CREATOR_PRICE_ID === priceId) {
+    return { tier: "pro", interval: "month" };
   }
   return null;
 }
@@ -17028,24 +17049,13 @@ async function registerRoutes(app) {
           return res.status(404).json({ error: { message: "User not found" } });
         if (!user.email)
           return res.status(400).json({ error: { message: "No email address on file" } });
-        const rawPlan = String(req.body?.plan || "creator_pro");
-        const planAliases = {
-          pro: "pro",
-          // Multi-Creator (quote)
-          label: "studio_pro",
-          // legacy
-          session: "session",
-          creator_pro: "creator_pro",
-          studio_pro: "studio_pro"
-        };
-        const plan = planAliases[rawPlan];
-        if (!plan) {
+        const parsedPlan = normalizeCheckoutPlan(req.body?.plan);
+        if (!parsedPlan.ok) {
           return res.status(400).json({
-            error: {
-              message: `Invalid plan: ${rawPlan}. Use session, creator_pro, or studio_pro.`
-            }
+            error: { message: parsedPlan.message }
           });
         }
+        const plan = parsedPlan.plan;
         const parsedInterval = parseBillingInterval(req.body?.interval);
         if (!parsedInterval.ok) {
           return res.status(400).json({ error: { message: parsedInterval.message } });
@@ -17054,14 +17064,6 @@ async function registerRoutes(app) {
         const intervalAllowed = assertPlanAllowsInterval(plan, interval);
         if (!intervalAllowed.ok) {
           return res.status(400).json({ error: { message: intervalAllowed.message } });
-        }
-        if (plan === "pro") {
-          return res.json({
-            quoteRequired: true,
-            plan,
-            interval,
-            message: "Multi-Creator is quote-based. Contact enterprise@splitsheet.ca for monthly or annual pricing."
-          });
         }
         const planPricing = {
           session: {
@@ -17111,7 +17113,7 @@ async function registerRoutes(app) {
             const isActive = ["active", "trialing"].includes(
               existingSub.status
             );
-            const currentTier = existingSub.metadata?.tier ?? "pro";
+            const currentTier = String(existingSub.metadata?.tier ?? "pro");
             const currentInterval = existingSub.metadata?.interval === "year" ? "year" : existingSub.items.data[0]?.price?.recurring?.interval === "year" ? "year" : "month";
             if (isActive && currentTier === plan && currentInterval === interval) {
               return res.json({

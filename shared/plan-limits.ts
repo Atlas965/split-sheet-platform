@@ -5,7 +5,7 @@
 export function normalizePlanTier(tier?: string | null): string {
   const t = (tier || "free").toLowerCase();
   if (t === "starter") return "free";
-  if (t === "label") return "studio_pro";
+  if (t === "label" || t === "pro") return "studio_pro";
   return t;
 }
 

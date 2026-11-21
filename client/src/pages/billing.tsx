@@ -49,12 +49,18 @@ interface Contract {
 }
 
 // ── Plan config ───────────────────────────────────────────────────────────────
-type PlanKey = "free" | "session" | "pro" | "creator_pro" | "studio_pro" | "enterprise";
+type PlanKey = "free" | "session" | "legacy_pro" | "creator_pro" | "studio_pro" | "enterprise";
+const AVAILABLE_UPGRADE_PLANS: Exclude<PlanKey, "legacy_pro">[] = [
+  "session",
+  "creator_pro",
+  "studio_pro",
+  "enterprise",
+];
 
 const PLANS: Record<PlanKey, { name: string; contractLimit: number | null }> = {
   free:        { name: "Starter Split", contractLimit: 1 },
   session:     { name: "Pay-Per-Session", contractLimit: 5 },
-  pro:         { name: "Multi-Creator", contractLimit: null },
+  legacy_pro:  { name: "Studio Pro (legacy pricing)", contractLimit: null },
   creator_pro: { name: "Creator Pro", contractLimit: null },
   studio_pro:  { name: "Studio Pro", contractLimit: null },
   enterprise:  { name: "Enterprise", contractLimit: null },
@@ -63,7 +69,7 @@ const PLANS: Record<PlanKey, { name: string; contractLimit: number | null }> = {
 const PLAN_FEATURES: Record<PlanKey, string[]> = {
   free:        ["1 collaboration project", "Up to 2 contributors", "Basic split allocation", "Contributor confirmation links", "Timestamped agreement summary", "PDF export"],
   session:     ["Up to 5 contributors", "Split percentage configuration", "Contributor verification workflow", "Agreement completion tracking", "PDF export package", "Audit log storage", "Email confirmations"],
-  pro:         ["Up to 10 contributors", "Multi-round revisions", "Enhanced audit history", "Contributor reminders system", "Project dashboard", "Priority processing option", "Full exportable records"],
+  legacy_pro:  ["Unlimited projects and contributors", "Team management dashboard", "Role-based permissions", "Advanced audit logs", "Bulk exports", "Organization-level analytics", "Priority support"],
   creator_pro: ["Unlimited sessions (no per-session fee)", "Project history storage", "Saved contributor profiles", "Collaboration analytics", "Workflow automation tools", "Discounted premium exports"],
   studio_pro:  ["Unlimited projects and contributors", "Team management dashboard", "Role-based permissions", "Advanced audit logs", "Bulk exports", "Organization-level analytics", "Priority support"],
   enterprise:  ["Unlimited projects", "Unlimited contributors", "Multi-team organization management", "Advanced role-based permissions", "Enterprise Rights Ledger", "Advanced audit history", "Bulk operations", "Advanced reporting", "API access and webhooks", "Custom onboarding and support"],
@@ -173,7 +179,7 @@ function UpgradePlanDialog({ open, onClose, currentPlan }: {
           role="region"
           aria-label="Available upgrade plans"
         >
-          {(["session", "pro", "creator_pro", "studio_pro", "enterprise"] as PlanKey[]).map((plan) => {
+          {AVAILABLE_UPGRADE_PLANS.map((plan) => {
             const cfg = PLANS[plan];
             const shown = displayPlanPrice(plan, plan === "session" || plan === "free" ? "month" : interval);
             const isCurrent    = plan === currentPlan;
@@ -326,15 +332,33 @@ export default function Billing() {
   // Map legacy tier names to new service model keys
   const tierMap: Record<string, PlanKey> = {
     free: "free", starter: "free",
-    pro: "session", session: "session",
-    label: "pro", studio: "pro",
+    pro: "legacy_pro", session: "session",
+    label: "studio_pro", studio: "studio_pro",
+    legacy_pro: "legacy_pro",
     creator_pro: "creator_pro", studio_pro: "studio_pro",
   };
   const rawTier = subscriptionData?.tier ?? (user as any)?.subscriptionTier ?? "free";
   const planKey: PlanKey = tierMap[rawTier] ?? "free";
   const plan = PLANS[planKey];
   const currentInterval: BillingInterval = subscriptionData?.interval === "year" ? "year" : "month";
-  const currentPrice = displayPlanPrice(planKey, currentInterval);
+  const currentPrice = rawTier === "pro"
+    ? currentInterval === "year"
+      ? {
+          price: "$600 CAD/year",
+          billing: "Billed annually in CAD · legacy rate",
+          monthlyEquivalent: "$50 CAD/mo",
+          saveBadge: null,
+        }
+      : {
+          price: "$50 CAD/mo",
+          billing: "Billed monthly in CAD · legacy rate",
+          monthlyEquivalent: null,
+          saveBadge: null,
+        }
+    : displayPlanPrice(
+        planKey === "legacy_pro" ? "studio_pro" : planKey,
+        currentInterval,
+      );
   const isActive = subscriptionData?.hasSubscription && subscriptionData?.status === "active";
 
   // Live usage numbers

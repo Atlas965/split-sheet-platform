@@ -17,15 +17,13 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 // ── Plan display config ────────────────────────────────────────────────────────
 function planDisplay(planKey: string, interval: BillingInterval) {
-  if (planKey === "pro" || planKey === "creator_pro" || planKey === "studio_pro") {
+  if (planKey === "creator_pro" || planKey === "studio_pro") {
     const shown = displayPlanPrice(planKey, interval);
     return {
-      label: planKey === "pro" ? "Multi-Creator" : planKey === "studio_pro" ? "Studio Pro" : "Creator Pro",
+      label: planKey === "studio_pro" ? "Studio Pro" : "Creator Pro",
       price: shown.price,
       features:
-        planKey === "pro"
-          ? ["Up to 10 contributors", "Multi-round revisions", "Enhanced audit history", "Contributor reminders", "Project dashboard"]
-          : planKey === "studio_pro"
+        planKey === "studio_pro"
           ? ["Unlimited projects and contributors", "Team management dashboard", "Role-based permissions", "Priority support"]
           : ["Unlimited sessions", "Project history storage", "Saved contributor profiles", "Discounted premium exports"],
     };
@@ -138,7 +136,8 @@ export default function Subscribe({ plan = "creator_pro", interval: intervalProp
   const planKey = plan.toLowerCase();
   const parsed = parseBillingInterval(intervalProp ?? sessionStorage.getItem("stripe_interval"));
   const interval = parsed.ok ? parsed.interval : "month";
-  const cfg     = planDisplay(planKey === "pro" || planKey === "label" ? "creator_pro" : planKey, interval);
+  const displayPlanKey = planKey === "pro" || planKey === "label" ? "studio_pro" : planKey;
+  const cfg     = planDisplay(displayPlanKey, interval);
 
   const [clientSecret, setClientSecret] = useState<string>(() => {
     // Priority 1: read from sessionStorage (set by billing dialog)

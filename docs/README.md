@@ -107,7 +107,7 @@ Operator accounts. Linked to Stripe customer and subscription IDs.
 | `email` | text | |
 | `stripeCustomerId` | text | |
 | `stripeSubscriptionId` | text | |
-| `subscriptionTier` | text | free / session / pro / creator_pro / studio_pro |
+| `subscriptionTier` | text | free / session / creator_pro / studio_pro; legacy `pro` subscriptions may remain |
 | `subscriptionStatus` | text | active / cancelled / past_due |
 
 #### `sessions`
@@ -340,9 +340,10 @@ SplitSheet uses a **hybrid three-layer pricing model**:
 
 | Tier | Price | Details |
 |---|---|---|
-| **Multi-Creator** | $50 CAD/month or $600 CAD/year | Up to 10 contributors, self-serve subscription |
 | **Creator Pro** | $15 CAD/month | Unlimited sessions, project history, saved contributors, analytics |
 | **Studio Pro** | $49 CAD/month | Team management, role-based permissions, bulk exports, priority support |
+
+Existing subscriptions on retired plan keys remain active under their existing Stripe terms and retain Studio Pro access. New checkouts use the current plans above.
 
 ### Layer 3 — Enterprise (Institutional Licensing)
 
@@ -514,7 +515,7 @@ Stripe handles all payment processing.
 |---|---|---|
 | `free` | (no Stripe product) | $0 |
 | `session` | Session billing | $25 CAD per session |
-| `pro` | Multi-Creator | $50 CAD/month or $600 CAD/year |
+| `pro` | Legacy subscriptions only; mapped to Studio Pro access | Existing Stripe terms |
 | `creator_pro` | Creator Pro | $15 CAD/month |
 | `studio_pro` | Studio Pro | $49 CAD/month |
 

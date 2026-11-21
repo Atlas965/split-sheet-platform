@@ -40,18 +40,6 @@ const OPERATOR_PLANS = [
     featured: true,
   },
   {
-    key: "pro" as const,
-    name: "Multi-Creator",
-    features: [
-      "Better for operators managing multiple contributors",
-      "$50 CAD per month with self-serve checkout",
-      "Project-level coordination and contributor follow-up",
-      "Enhanced audit history and operational traceability",
-      "Supports teams, labels, and rights administrators",
-    ],
-    featured: false,
-  },
-  {
     key: "creator_pro" as const,
     name: "Creator Pro",
     features: [
@@ -97,18 +85,18 @@ const OPERATOR_PLANS = [
 
 const PLAN_WINDOWS = [
   {
-    key: "pro" as const,
-    title: "Multi-Creator",
-    eyebrow: "For producers, songwriters, managers, and independent operators",
+    key: "studio_pro" as const,
+    title: "Studio Pro",
+    eyebrow: "For growing teams and rights administrators",
     useCase:
-      "Manage multiple contributors and projects, coordinate confirmations, and maintain organized ownership records through one workflow.",
+      "Manage projects, teams, contributor confirmations, and ownership records through one shared workflow.",
     details: [
-      "Coordinate contributors across multiple projects",
-      "Track ownership and confirmations in one operating view",
-      "Manage creator workflows with predictable monthly pricing",
+      "Unlimited projects and contributors",
+      "Role-based permissions and team management",
+      "Advanced audit history and bulk exports",
     ],
-    href: (interval: BillingInterval) => `/subscribe?plan=pro&interval=${interval}`,
-    cta: "Choose Multi-Creator",
+    href: (interval: BillingInterval) => `/subscribe?plan=studio_pro&interval=${interval}`,
+    cta: "Choose Studio Pro",
     featured: false,
   },
   {
@@ -131,87 +119,43 @@ const PLAN_WINDOWS = [
 
 const BEST_FOR_BADGES = [
   { label: "Solo operators", value: "Starter Split" },
-  { label: "Multi-creator teams", value: "Multi-Creator" },
   { label: "Recurring workflows", value: "Creator Pro" },
   { label: "Growing organizations", value: "Studio Pro" },
   { label: "Enterprise governance", value: "Enterprise" },
 ] as const;
 
-const PLAN_COMPARISON = [
-  {
-    feature: "Best for",
-    values: {
-      starter: "Solo operators",
-      multi: "Producers & managers",
-      creator: "Independent creators",
-      studio: "Growing teams",
-      enterprise: "Large organizations",
-    },
-  },
-  {
-    feature: "Contributor volume",
-    values: {
-      starter: "Up to 2",
-      multi: "Multiple creators",
-      creator: "Unlimited sessions",
-      studio: "Unlimited projects",
-      enterprise: "Unlimited scale",
-    },
-  },
-  {
-    feature: "Rights oversight",
-    values: {
-      starter: "Basic",
-      multi: "Structured",
-      creator: "Full project history",
-      studio: "Advanced team audit",
-      enterprise: "Enterprise governance",
-    },
-  },
-  {
-    feature: "Typical path",
-    values: {
-      starter: "Get started quickly",
-      multi: "Self-serve subscription",
-      creator: "Self-serve growth",
-      studio: "Team operations",
-      enterprise: "Custom rollout",
-    },
-  },
-] as const;
-
 const PLAN_FEATURE_MATRIX = [
   {
     feature: "Contributor confirmation links",
-    values: { starter: "✓", session: "✓", multi: "✓", creator: "✓", studio: "✓", enterprise: "✓" },
+    values: { starter: "✓", session: "✓", creator: "✓", studio: "✓", enterprise: "✓" },
   },
   {
     feature: "Unlimited projects",
-    values: { starter: "✕", session: "✕", multi: "✕", creator: "✓", studio: "✓", enterprise: "✓" },
+    values: { starter: "✕", session: "✕", creator: "✓", studio: "✓", enterprise: "✓" },
   },
   {
     feature: "Unlimited contributors",
-    values: { starter: "✕", session: "✕", multi: "✓", creator: "✓", studio: "✓", enterprise: "✓" },
+    values: { starter: "✕", session: "✕", creator: "✓", studio: "✓", enterprise: "✓" },
   },
   {
     feature: "Advanced role-based access",
-    values: { starter: "✕", session: "✕", multi: "✕", creator: "✕", studio: "✓", enterprise: "✓" },
+    values: { starter: "✕", session: "✕", creator: "✕", studio: "✓", enterprise: "✓" },
   },
   {
     feature: "Enterprise rights ledger",
-    values: { starter: "✕", session: "✕", multi: "✕", creator: "✕", studio: "✓", enterprise: "✓" },
+    values: { starter: "✕", session: "✕", creator: "✕", studio: "✓", enterprise: "✓" },
   },
   {
     feature: "Advanced audit history",
-    values: { starter: "✕", session: "✓", multi: "✓", creator: "✓", studio: "✓", enterprise: "✓" },
+    values: { starter: "✕", session: "✓", creator: "✓", studio: "✓", enterprise: "✓" },
   },
   {
     feature: "API access / webhooks",
-    values: { starter: "✕", session: "✕", multi: "✕", creator: "✕", studio: "✕", enterprise: "✓" },
+    values: { starter: "✕", session: "✕", creator: "✕", studio: "✕", enterprise: "✓" },
   },
   {
     feature: "Custom onboarding + support",
-    values: { starter: "✕", session: "✕", multi: "✕", creator: "✕", studio: "✕", enterprise: "✓" },
+    values: { starter: "✕", session: "✕", creator: "✕", studio: "✕", enterprise: "✓" },
   },
 ] as const;
 
@@ -225,11 +169,6 @@ const PLAN_PROS_CONS = [
     plan: "Pay-Per-Session",
     benefits: ["Simple per-project billing", "Good for occasional operators", "Clean project-based flow"],
     disadvantages: ["Can grow expensive", "Less ideal for recurring teams", "Fewer scale controls"],
-  },
-  {
-    plan: "Multi-Creator",
-    benefits: ["Built for operational scale", "Structured contributor management", "Predictable $50 monthly pricing"],
-    disadvantages: ["More coordination required", "Not as custom as enterprise", "Fewer custom controls than Enterprise"],
   },
   {
     plan: "Creator Pro",
@@ -1087,7 +1026,7 @@ export default function Landing() {
             <BillingIntervalToggle value={interval} onChange={setInterval} />
           </div>
 
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {OPERATOR_PLANS.map((plan) => {
               const shown = displayPlanPrice(
                 plan.key,
@@ -1096,11 +1035,9 @@ export default function Landing() {
               const href =
                 plan.key === "enterprise"
                   ? "/enterprise/demo"
-                  : plan.key === "pro"
-                    ? `/subscribe?plan=pro&interval=${interval}`
-                    : plan.key === "creator_pro" || plan.key === "studio_pro"
-                      ? `/subscribe?plan=${plan.key}&interval=${interval}`
-                      : "/login";
+                  : plan.key === "creator_pro" || plan.key === "studio_pro"
+                    ? `/subscribe?plan=${plan.key}&interval=${interval}`
+                    : "/login";
 
               return (
                 <motion.div
@@ -1167,7 +1104,6 @@ export default function Landing() {
                     <th className="px-4 py-3 font-medium">Feature</th>
                     <th className="px-4 py-3 font-medium">Starter Split</th>
                     <th className="px-4 py-3 font-medium">Pay-Per-Session</th>
-                    <th className="px-4 py-3 font-medium">Multi-Creator</th>
                     <th className="px-4 py-3 font-medium">Creator Pro</th>
                     <th className="px-4 py-3 font-medium">Studio Pro</th>
                     <th className="px-4 py-3 font-medium">Enterprise</th>
@@ -1179,7 +1115,6 @@ export default function Landing() {
                       <td className="px-4 py-3 font-medium text-foreground">{row.feature}</td>
                       <td className="px-4 py-3 text-muted-foreground">{row.values.starter}</td>
                       <td className="px-4 py-3 text-muted-foreground">{row.values.session}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{row.values.multi}</td>
                       <td className="px-4 py-3 text-muted-foreground">{row.values.creator}</td>
                       <td className="px-4 py-3 text-muted-foreground">{row.values.studio}</td>
                       <td className="px-4 py-3 text-muted-foreground">{row.values.enterprise}</td>
@@ -1237,7 +1172,7 @@ export default function Landing() {
 
           <div className="mt-8 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <p>
-              Multi-Creator is $50 CAD per month, with annual billing available for $600 CAD.
+              Creator Pro and Studio Pro include annual billing with two months free.
               Enterprise deployments are available with custom pricing.
             </p>
             <div className="flex flex-wrap items-center gap-3">

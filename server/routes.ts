@@ -55,6 +55,7 @@ import { registerV1ApiRoutes } from "./v1-api-routes";
 import { registerReferralRoutes } from "./referral-routes";
 import {
   assertPlanAllowsInterval,
+  normalizeCheckoutPlan,
   parseBillingInterval,
   PLAN_PRICE_CENTS,
   resolveStripePriceId,
@@ -772,23 +773,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .status(400)
             .json({ error: { message: "No email address on file" } });
 
-        // UI plan keys (billing.tsx) + legacy Stripe keys
-        const rawPlan = String(req.body?.plan || "creator_pro");
-        const planAliases: Record<string, string> = {
-          pro: "pro", // Multi-Creator
-          label: "studio_pro", // legacy
-          session: "session",
-          creator_pro: "creator_pro",
-          studio_pro: "studio_pro",
-        };
-        const plan = planAliases[rawPlan];
-        if (!plan) {
+        const parsedPlan = normalizeCheckoutPlan(req.body?.plan);
+        if (!parsedPlan.ok) {
           return res.status(400).json({
-            error: {
-              message: `Invalid plan: ${rawPlan}. Use session, pro, creator_pro, or studio_pro.`,
-            },
+            error: { message: parsedPlan.message },
           });
         }
+        const plan = parsedPlan.plan;
 
         const parsedInterval = parseBillingInterval(req.body?.interval);
         if (!parsedInterval.ok) {
@@ -808,17 +799,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             amount: PLAN_PRICE_CENTS.session.month,
             name: "Pay-Per-Session",
             envKey: "STRIPE_SESSION_PRICE_ID",
-          },
-          pro: {
-            amount:
-              interval === "year"
-                ? PLAN_PRICE_CENTS.pro.year
-                : PLAN_PRICE_CENTS.pro.month,
-            name: "Multi-Creator",
-            envKey:
-              interval === "year"
-                ? "STRIPE_MULTI_CREATOR_ANNUAL_PRICE_ID"
-                : "STRIPE_MULTI_CREATOR_PRICE_ID",
           },
           creator_pro: {
             amount:
@@ -882,7 +862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const isActive = ["active", "trialing"].includes(
               existingSub.status,
             );
-            const currentTier = (existingSub.metadata?.tier ?? "pro") as string;
+            const currentTier = String(existingSub.metadata?.tier ?? "pro");
             const currentInterval =
               existingSub.metadata?.interval === "year"
                 ? "year"
