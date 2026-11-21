@@ -249,24 +249,14 @@ const PLAN_PROS_CONS = [
 ] as const;
 
 const WORKFLOW_STEPS = [
-  { n: "01", title: "Create project", desc: "Open a song or project and enter contributors." },
-  { n: "02", title: "Set splits", desc: "Define roles and ownership percentages." },
-  { n: "03", title: "Build agreement", desc: "Populate the agreement workflow from your project data." },
-  { n: "04", title: "Validate", desc: "Check required fields and ownership totals before sending." },
-  { n: "05", title: "Confirm", desc: "Send contributors a secure link to review and confirm." },
-  { n: "06", title: "Capture evidence", desc: "Record confirmation status, timestamps, and related event data." },
-  { n: "07", title: "Record rights", desc: "Keep resulting ownership information in the rights ledger." },
-] as const;
-
-const TEMPLATE_CATEGORIES = [
-  "Split sheets",
-  "Producer agreements",
-  "Master rights",
-  "Publishing",
-  "Licensing",
-  "Artist / label",
-  "Management",
-  "Live / touring",
+  { n: "01", title: "Create a project", desc: "Start a music-project record and enter its title and relevant details." },
+  { n: "02", title: "Add contributors", desc: "Identify the people involved and organize their submitted information." },
+  { n: "03", title: "Record allocations", desc: "Enter proposed ownership percentages and check whether they total 100%." },
+  { n: "04", title: "Share contributor links", desc: "Invite contributors to review and submit information through a dedicated link." },
+  { n: "05", title: "Collect confirmations", desc: "Review contributor submissions and track confirmation status." },
+  { n: "06", title: "Organize documentation", desc: "Keep project information and submitted documentation associated with the record." },
+  { n: "07", title: "Review the record", desc: "Find outstanding confirmations, incomplete information, and items needing attention." },
+  { n: "08", title: "Export project information", desc: "Generate a PDF record for operational reference and further review." },
 ] as const;
 
 const TRUST_BADGES = [
@@ -298,9 +288,10 @@ export default function Landing() {
           </a>
           <div className="hidden items-center gap-7 text-sm md:flex">
             {[
+              ["#product", "Platform"],
               ["#how-it-works", "How It Works"],
-              ["#product", "Product"],
-              ["#templates", "Templates"],
+              ["#ai-development-heading", "AI Direction"],
+              ["#roadmap-heading", "Roadmap"],
               ["#pricing", "Pricing"],
               ["#security", "Security"],
               ["/login", "Sign In"],
@@ -345,19 +336,19 @@ export default function Landing() {
           >
             <p className="mb-4 text-sm font-semibold tracking-wide text-accent">SplitSheet</p>
             <h1 className="max-w-xl text-4xl font-bold leading-[1.1] tracking-tight text-foreground sm:text-5xl">
-              Music rights documentation, built for the people who run it.
+              Intelligent infrastructure for music rights, documentation and decision traceability.
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
-              SplitSheet helps songwriters, producers, engineers, and managers
-              document ownership splits, agreements, contributor confirmations,
-              and supporting evidence in one organized workflow. Keep project
-              records together without requiring every contributor to create an
-              account.
+              Bring music-project information, contributor confirmations and
+              rights documentation into one organized workflow. SplitSheet helps
+              music teams manage the information they receive, while SoundLedger
+              develops a future AI-assisted layer for more transparent,
+              explainable and traceable information processing.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <MotionCta href="/login">Get Started</MotionCta>
-              <MotionCta href="#how-it-works" variant="secondary">
-                See How It Works
+              <MotionCta href="/login">Create an account</MotionCta>
+              <MotionCta href="#product" variant="secondary">
+                Explore the platform
               </MotionCta>
             </div>
             <div className="mt-6 flex flex-wrap gap-2">
@@ -371,7 +362,8 @@ export default function Landing() {
               ))}
             </div>
             <p className="mt-5 text-sm text-muted-foreground">
-              Software for rights workflows — not a law firm, marketplace, or escrow service.
+              SplitSheet is a documentation and workflow tool. It does not provide legal
+              advice, independently verify copyright ownership or guarantee agreement enforceability.
             </p>
           </motion.div>
           <motion.div
@@ -419,25 +411,78 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="product" className="border-b border-border">
+      <section id="product" className="border-b border-border bg-muted/40">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
+          <div className="grid gap-10 lg:grid-cols-[0.7fr_1.3fr]">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+                The platform
+              </p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                The foundation for more intelligent music-rights management.
+              </h2>
+              <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+                Music-project information is often scattered across agreements,
+                email, spreadsheets, project files and conversations. SplitSheet
+                brings key information into a structured digital workflow.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-foreground">
+                What SplitSheet provides today
+              </h3>
+              <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+                {[
+                  ["Project documentation", "Create and organize music-project records."],
+                  ["Contributor management", "Record the people associated with a project."],
+                  ["Ownership allocations", "Document proposed percentages and check totals."],
+                  ["Contributor confirmations", "Share a link for contributors to review and submit information."],
+                  ["Confirmation records", "Track submissions and relevant workflow events."],
+                  ["Document management", "Keep submitted information with associated project records."],
+                  ["PDF exports", "Create downloadable project documentation."],
+                  ["Centralized workspace", "Review project information and confirmation status."],
+                ].map(([title, body]) => (
+                  <li key={title} className="rounded-xl border border-border bg-card p-4">
+                    <h4 className="font-semibold text-foreground">{title}</h4>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{body}</p>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6 rounded-xl border border-accent/30 bg-accent/5 p-5">
+                <h3 className="font-semibold text-foreground">Where we are going</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  SoundLedger is developing an AI-assisted information-processing
+                  and decision-support layer to help users understand information
+                  quality, consistency, completeness and history. These capabilities
+                  are proposed research and development, not current product claims.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="problem" className="border-b border-border">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
           <Reveal>
             <h2 className="max-w-2xl text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Music rights workflows become complicated fast.
+              The problem: music-rights information is fragmented.
             </h2>
             <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-              SplitSheet replaces fragmented documents, messages, spreadsheets, and
-              follow-ups with a structured workflow.
+              Music creation is collaborative. Contributors, studios, labels,
+              publishers and rights teams rely on information that often lives in
+              different systems and formats.
             </p>
           </Reveal>
           <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              "Split information gets scattered across tools",
-              "Contributors need a clear way to confirm ownership",
-              "Agreements need consistent project information",
-              "Teams need to know who has confirmed",
-              "Records need to stay organized and retrievable",
-              "Operators need an auditable history of what happened",
+              "Contributor details may be incomplete or inconsistent",
+              "Ownership allocations may not be clearly documented",
+              "Different versions of project information may circulate",
+              "Confirmations can be difficult to track",
+              "Important documentation may be hard to retrieve",
+              "Rights teams may manually reconcile information",
+              "Reasons for decisions or corrections may not be recorded consistently",
             ].map((item, i) => (
               <Reveal key={item} delay={i * 0.05}>
                 <li className="border-l-2 border-accent/40 pl-4 text-sm leading-relaxed text-foreground">
@@ -446,6 +491,10 @@ export default function Landing() {
               </Reveal>
             ))}
           </ul>
+          <p className="mt-8 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+            SplitSheet organizes the workflow. SoundLedger&apos;s research and development
+            direction is to make that workflow more intelligent, explainable and traceable.
+          </p>
         </div>
       </section>
 
@@ -455,8 +504,7 @@ export default function Landing() {
             How SplitSheet works
           </h2>
           <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
-            Project → Contributors → Splits → Agreement → Review → Confirmation →
-            Evidence → Rights ledger
+            Collect, organize and review music-project information in a structured workflow.
           </p>
           <ol className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {WORKFLOW_STEPS.map((step, i) => (
@@ -475,6 +523,11 @@ export default function Landing() {
               </motion.li>
             ))}
           </ol>
+          <p className="mt-8 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+            SplitSheet records information supplied by users. A completed workflow
+            does not independently establish legal ownership or replace professional
+            legal review.
+          </p>
         </div>
       </section>
 
@@ -483,27 +536,31 @@ export default function Landing() {
           <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:items-start">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
-                AI innovation
+                Proposed research and development
               </p>
               <h2 id="ai-development-heading" className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                From fragmented records to explainable information.
+                The next stage: AI-assisted music-rights intelligence.
               </h2>
               <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
-                SoundLedger is developing an AI-assisted intelligence layer that makes
-                music-rights information easier to process, validate, and review.
+                From organizing information to understanding it. SoundLedger is
+                exploring AI-assisted approaches to help users process information
+                efficiently, identify potential issues and understand why an item
+                has been raised for review.
               </p>
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-                This work is proposed R&amp;D and is not represented as a system that
-                determines copyright ownership or replaces professional judgment.
+                The goal is not to replace music professionals, legal counsel or
+                rights administrators, and not to make autonomous decisions about
+                ownership.
               </p>
             </div>
 
             <ol className="grid gap-4 sm:grid-cols-2">
               {[
-                ["01", "Intelligent document processing", "Organize relevant fields from agreements and supporting documents, identify missing information, and support document-to-project comparisons."],
-                ["02", "Rights-information validation", "Strengthen ownership-total checks, required-field detection, project-record comparisons, and exceptions for operator review."],
-                ["03", "Explainable decision support", "Connect flagged information to source records, validation rules, model or rules versions, reasons, and suggested next steps."],
-                ["04", "Decision traceability", "Maintain processing timestamps, source references, review status, human overrides, and related evidence in the workflow history."],
+                ["01", "Intelligent document processing", "Explore extraction of project details, contributors, roles, ownership percentages, dates and document references from supported documents into structured records."],
+                ["02", "Rights-data validation", "Identify incomplete, conflicting or potentially inconsistent information across project records and submitted documents. A discrepancy prompts review; it does not determine legal error or a dispute."],
+                ["03", "Explainable decision support", "Show what triggered a flag, which source was considered, what rule or method was applied, and why a human reviewer may want to look closer."],
+                ["04", "Decision traceability", "Associate processing outputs with source information, model or rules versions, timestamps, recommendations and human review or correction activity."],
+                ["05", "Human oversight", "Keep users responsible for reviewing information, resolving discrepancies and deciding what action to take."],
               ].map(([number, title, body], i) => (
                 <motion.li
                   key={number}
@@ -523,16 +580,16 @@ export default function Landing() {
 
           <div className="mt-10 rounded-2xl border border-border bg-muted/40 p-5 sm:p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Proposed traceable workflow
+              Proposed information-processing framework
             </p>
             <ol className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
               {[
-                ["1", "Information inputs"],
-                ["2", "Extraction"],
-                ["3", "AI analysis"],
+                ["1", "Information input"],
+                ["2", "Document processing"],
+                ["3", "AI-assisted analysis"],
                 ["4", "Explainability"],
                 ["5", "Human review"],
-                ["6", "Rights records"],
+                ["6", "Structured record"],
               ].map(([number, label], i) => (
                 <li key={number} className="relative rounded-lg border border-border bg-card px-3 py-4 text-sm font-medium text-foreground">
                   <span className="mr-2 text-accent">{number}</span>
@@ -542,9 +599,13 @@ export default function Landing() {
               ))}
             </ol>
             <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
-              Human oversight remains a core design principle: operators review,
-              accept, reject, or correct results and remain responsible for
-              consequential decisions.
+              Proposed capabilities are not live product features. Any system output
+              is intended to support human review, not independently establish legal
+              rights, copyright ownership or a final decision.
+            </p>
+            <p className="mt-4 text-sm font-semibold text-foreground">
+              AI should make information easier to understand, not make unaccountable
+              decisions about ownership.
             </p>
           </div>
         </div>
@@ -583,28 +644,37 @@ export default function Landing() {
       <section className="border-b border-border bg-muted/40">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Who it is for
+            Designed for the people who work with music rights
           </h2>
           <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
-            Built for the people who create, produce, engineer, and manage music projects.
+            SplitSheet is being developed for individuals and organizations that
+            create, manage and administer music projects.
           </p>
-          <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 title: "Songwriters",
-                body: "Document your agreed ownership splits and keep contributor confirmations organized, even when a song is created across multiple sessions and studios.",
+                body: "Organize contributor information, document proposed splits and collect confirmations.",
               },
               {
-                title: "Producers & beatmakers",
-                body: "Keep collaborator information, agreements, confirmations, and rights records organized for every project.",
+                title: "Music producers",
+                body: "Keep project information and contributor allocations organized across collaborative recordings.",
               },
               {
-                title: "Engineers",
-                body: "Document session details and contributions as work happens, helping keep important project information from getting lost after the final bounce.",
+                title: "Recording and audio engineers",
+                body: "Maintain a clearer record of the projects and contributors they work with.",
               },
               {
-                title: "Managers",
-                body: "Coordinate documentation and contributor confirmations across multiple artists, projects, and collaborators.",
+                title: "Recording studios",
+                body: "Support consistent documentation practices across sessions and client projects.",
+              },
+              {
+                title: "Independent labels",
+                body: "Organize project information and contributor documentation across releases.",
+              },
+              {
+                title: "Managers and rights teams",
+                body: "Review project records, monitor outstanding confirmations and improve access to supporting information.",
               },
             ].map((card, i) => (
               <motion.div
@@ -627,12 +697,12 @@ export default function Landing() {
       <section className="border-b border-border">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Contributors don&apos;t need another account.
+            A connected workflow for contributors
           </h2>
           <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-            The operator sends a secure confirmation link. Contributors review the
-            relevant information, confirm their details and participation, and
-            complete the workflow without creating a SplitSheet account.
+            Not everyone involved in a music project needs a full software account.
+            Operators can share a contributor link so invited participants can
+            review and submit relevant information without purchasing a paid plan.
           </p>
           <ol className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             {["Secure link", "Review", "Confirm", "Evidence recorded"].map((step, i, arr) => (
@@ -658,34 +728,38 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="templates" className="border-b border-border bg-muted/40">
+      <section id="principles" className="border-b border-border bg-muted/40">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            One workflow for the documents your projects require.
+            Built around structured information and accountability
           </h2>
           <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
-            Use catalog templates across common music documentation categories.
+            Music-rights workflows need more than a place to store files. They need
+            clear records of what information was provided, what was confirmed and
+            what still needs attention.
           </p>
-          <div className="mt-8 flex flex-wrap gap-2">
-            {TEMPLATE_CATEGORIES.map((cat, i) => (
-              <motion.span
-                key={cat}
-                initial={reduce ? false : { opacity: 0, scale: 0.96 }}
-                whileInView={{ opacity: 1, scale: 1 }}
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ["Structured records", "Organize project and contributor information in a consistent format."],
+              ["Documented confirmations", "Maintain records of contributor submissions and relevant confirmation activity."],
+              ["Information consistency", "Check basic information such as ownership totals and identify incomplete records."],
+              ["Traceable activity", "Support visibility into relevant workflow events and record changes."],
+              ["Human review", "Keep users involved in reviewing information and making decisions."],
+              ["Responsible AI development", "Design future capabilities around explainability, oversight and traceable processing."],
+            ].map(([title, body], i) => (
+              <motion.div
+                key={title}
+                initial={reduce ? false : { opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.04 }}
-                whileHover={reduce ? undefined : { y: -2 }}
-                className="rounded-full border border-border bg-card px-3.5 py-1.5 text-sm text-foreground"
+                transition={{ delay: i * 0.05 }}
+                className="rounded-xl border border-border bg-card p-5"
               >
-                {cat}
-              </motion.span>
+                <h3 className="font-semibold text-foreground">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
+              </motion.div>
             ))}
           </div>
-          <p className="mt-8 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-            Templates are workflow and documentation tools. They are not legal
-            advice and are not represented as counsel-approved legal instruments
-            unless explicitly identified as such.
-          </p>
         </div>
       </section>
 
@@ -760,19 +834,19 @@ export default function Landing() {
             Security, privacy, and control
           </h2>
           <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
-            Practical controls for operator access and contributor links — without
-            overstating certifications we do not hold.
+            Music-project records can contain commercially sensitive and personal
+            information. SoundLedger continues to assess appropriate safeguards as
+            the product develops.
           </p>
           <ul className="mt-8 grid gap-3 sm:grid-cols-2">
             {[
-              "Authenticated operator access",
-              "Controlled contributor confirmation links",
-              "Server-side authorization",
-              "PostgreSQL-backed data",
-              "Session management",
-              "Stripe billing for operators",
-              "Audit and evidence records",
-              "Data export and account deletion where implemented",
+              "Appropriate access controls",
+              "Responsible handling of contributor information",
+              "Secure transmission and storage practices",
+              "Clear documentation of platform functionality",
+              "Appropriate retention and deletion processes",
+              "Human oversight of future AI-assisted outputs",
+              "Further privacy, security and legal review as capabilities develop",
             ].map((item) => (
               <li
                 key={item}
@@ -782,6 +856,12 @@ export default function Landing() {
               </li>
             ))}
           </ul>
+          <p className="mt-6 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+            Do not submit confidential agreements or sensitive personal information
+            unless you have reviewed the current Privacy Policy and Terms. Specific
+            security controls and certifications are described only where implemented
+            and verified.
+          </p>
         </div>
       </section>
 
@@ -793,19 +873,19 @@ export default function Landing() {
                 Product roadmap
               </p>
               <h2 id="roadmap-heading" className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                Built in phases. Governed through evidence.
+                Product status and development roadmap
               </h2>
               <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
-                SoundLedger is developing SplitSheet through technical validation,
-                customer feedback, available resources, and commercialization milestones.
+                We are building in stages, with a clear distinction between existing
+                workflow functionality and proposed research and development.
               </p>
             </div>
             <ol className="grid gap-4 sm:grid-cols-2">
               {[
-                ["Phase 1", "Workflow infrastructure", "Projects, contributors, splits, agreements, confirmation links, and rights records."],
-                ["Phase 2", "Intelligent information processing", "Document extraction, normalization, advanced validation, and inconsistency detection."],
-                ["Phase 3", "Explainable AI and decision governance", "Decision provenance, rule and model versions, review records, and audit reporting."],
-                ["Phase 4", "Commercial intelligence", "Rights reporting, integrations, enterprise analytics, and expanded reporting services."],
+                ["Phase 1", "Current product foundation", "Project and contributor records, ownership allocation workflows, confirmation links and status tracking, document organization, PDF exports, and the operator workspace."],
+                ["Phase 2", "Proposed: intelligent document processing", "Explore supported-document extraction, structured records, improved normalization and human verification."],
+                ["Phase 3", "Proposed: explainable validation and traceability", "Explore potential inconsistency flags, explanations, processing/version records and human review controls."],
+                ["Phase 4", "Long-term: broader rights intelligence", "Research broader information analysis, cross-project management, integrations and decision support."],
               ].map(([phase, title, body], i) => (
                 <motion.li
                   key={phase}
@@ -822,6 +902,53 @@ export default function Landing() {
               ))}
             </ol>
           </div>
+          <p className="mt-6 text-sm leading-relaxed text-muted-foreground">
+            Development stages depend on technical validation, available resources,
+            funding and customer research. Proposed capabilities are not represented
+            as completed product features.
+          </p>
+        </div>
+      </section>
+
+      <section className="border-b border-border bg-muted/40">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
+          <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:items-start">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+                Commercial opportunity
+              </p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                Building infrastructure for a fragmented industry.
+              </h2>
+              <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+                Music creators, studios, labels, publishers, managers and rights
+                administrators generate information throughout a project&apos;s lifecycle.
+                SplitSheet is SoundLedger&apos;s initial commercial product and the
+                foundation for a broader music-technology platform.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-foreground">Our commercialization approach</h3>
+              <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+                {[
+                  "Direct adoption by independent music creators",
+                  "Studio pilots and workflow feedback",
+                  "Engagement with music-business and audio-production education programs",
+                  "Relationships with independent labels and rights professionals",
+                  "Subscription and usage-based software plans",
+                  "Future business-focused services and integrations",
+                ].map((item) => (
+                  <li key={item} className="rounded-lg border border-border bg-card px-4 py-3 text-sm leading-relaxed text-foreground">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+                The initial focus is product validation with real users, workflow
+                improvement from feedback and establishing repeatable customer adoption.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -830,18 +957,22 @@ export default function Landing() {
           <div className="grid gap-8 md:grid-cols-[0.75fr_1.25fr] md:items-center">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
-                Ontario, Canada
+                Built in Ontario, for the music industry
               </p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                Built in London. Designed for a global music industry.
+                SoundLedger Technologies Inc.
               </h2>
+              <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+                An Ontario-based technology company headquartered in London,
+                developing business and operational infrastructure for music.
+              </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                ["Commercial pilots", "Validate the product with independent professionals and studios."],
-                ["Privacy and security", "Apply practical controls, responsible data handling, and privacy-first architecture."],
-                ["Customer-led growth", "Optimize workflows and build partnerships around real operating needs."],
-                ["Long-term vision", "Connect rights documentation, evidence, information intelligence, and financial decision support."],
+                ["Canadian music technology", "Build and commercialize products for the business infrastructure of music."],
+                ["Research and development", "Explore responsible AI-assisted information processing."],
+                ["Ontario collaboration", "Create opportunities across music, technology and creative sectors."],
+                ["Long-term ambition", "Build a connected platform spanning software, industry information and financial intelligence."],
               ].map(([title, body]) => (
                 <div key={title} className="rounded-xl border border-border bg-card p-5">
                   <h3 className="font-semibold text-foreground">{title}</h3>
@@ -850,6 +981,13 @@ export default function Landing() {
               ))}
             </div>
           </div>
+          <p className="mt-6 text-sm text-muted-foreground">
+            SplitSheet is SoundLedger&apos;s first product.{" "}
+            <a href="https://soundledger.ca" className="text-accent underline-offset-2 hover:underline" target="_blank" rel="noreferrer">
+              Learn about SoundLedger
+            </a>
+            .
+          </p>
         </div>
       </section>
 
@@ -1121,34 +1259,15 @@ export default function Landing() {
           </h2>
           <div className="mt-8 divide-y divide-border rounded-2xl border border-border bg-card px-5 sm:px-6">
             {[
-              [
-                "Does SplitSheet determine who legally owns a song?",
-                "No. SplitSheet documents contributor information and ownership allocations supplied by users. It does not independently establish copyright ownership or determine legal rights.",
-              ],
-              [
-                "Do contributors need an account?",
-                "No. Contributors can review and complete the relevant confirmation workflow through an operator-issued link.",
-              ],
-              [
-                "Does SplitSheet provide legal advice?",
-                "No. SplitSheet is software for operational documentation. Users should obtain appropriate legal advice for their agreements and circumstances.",
-              ],
-              [
-                "Does SplitSheet use AI?",
-                "The platform has an existing structured workflow and validation foundation. AI-assisted document processing and explainable decision support are part of the proposed development roadmap, not a representation that every planned feature is currently active.",
-              ],
-              [
-                "Does confirmation guarantee an enforceable agreement?",
-                "No. Confirmation and evidence records support traceability and documentation. Legal enforceability depends on the applicable facts, law, agreement, and circumstances.",
-              ],
-              [
-                "Who owns SplitSheet?",
-                "SplitSheet is developed and commercialized by SoundLedger Technologies Inc., subject to the company's documented intellectual property ownership and applicable third-party rights.",
-              ],
-              [
-                "Who is SplitSheet designed for?",
-                "Songwriters, producers, recording engineers, managers, studios, independent labels, and music-rights administrators.",
-              ],
+              ["What is SplitSheet?", "SplitSheet is a music-rights documentation and workflow platform that helps users organize music-project information, record proposed ownership allocations and collect contributor confirmations."],
+              ["Who is SplitSheet for?", "It is designed for songwriters, producers, recording engineers, studios, independent labels, managers and music-rights teams."],
+              ["Do contributors need an account?", "Contributors can participate through an operator-shared confirmation link without purchasing a paid account."],
+              ["Does SplitSheet legally establish copyright ownership?", "No. SplitSheet records information supplied by users and supports documentation workflows. It does not independently verify copyright ownership or determine legal rights."],
+              ["Does SplitSheet provide legal advice?", "No. It is a software platform, not a law firm. Users should consult qualified entertainment counsel for legal advice and agreement review."],
+              ["Does SplitSheet currently use AI to determine ownership?", "No. The live product provides a structured documentation and workflow foundation. SoundLedger's proposed R&D focuses on document processing, information validation, explainability and decision traceability. AI outputs are intended to support human review, not independently determine ownership."],
+              ["What is SoundLedger developing next?", "SoundLedger is exploring AI-assisted capabilities to help process supported documents, identify potential information inconsistencies and explain system-generated flags and recommendations."],
+              ["Does a confirmation guarantee an enforceable agreement?", "No. A record of a confirmation supports documentation and traceability but does not guarantee legal enforceability."],
+              ["Who develops SplitSheet?", "SplitSheet is developed by SoundLedger Technologies Inc., an Ontario-based technology company headquartered in London, Ontario."],
             ].map(([question, answer]) => (
               <details key={question} className="group py-5">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-foreground">
@@ -1182,20 +1301,28 @@ export default function Landing() {
       <section className="bg-muted/50">
         <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 lg:py-20">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Move your next rights workflow out of the inbox.
+            Organize your music projects. Build better information workflows.
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Create a project, organize the splits, collect confirmations, and
-            maintain the record.
+            Start with a structured music-rights workflow while SoundLedger works
+            toward a more intelligent and transparent future for music-industry
+            information management.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <MotionCta href="/login" className="w-full sm:w-auto">
-              Get Started
+              Create your SplitSheet account
             </MotionCta>
-            <MotionCta href="#how-it-works" variant="secondary" className="w-full sm:w-auto">
-              Explore SplitSheet
+            <MotionCta href="mailto:support@splitsheet.ca" variant="secondary" className="w-full sm:w-auto">
+              Contact SoundLedger
             </MotionCta>
           </div>
+          <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
+            SplitSheet is software for documentation and workflow. It does not provide
+            legal advice, independently verify copyright ownership or guarantee that
+            a document or allocation is legally valid or enforceable. Users are
+            responsible for submitted information and should seek qualified legal
+            advice where appropriate.
+          </p>
         </div>
       </section>
 
