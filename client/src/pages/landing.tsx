@@ -478,6 +478,78 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="border-b border-border" aria-labelledby="ai-development-heading">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
+          <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:items-start">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+                AI innovation
+              </p>
+              <h2 id="ai-development-heading" className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                From fragmented records to explainable information.
+              </h2>
+              <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+                SoundLedger is developing an AI-assisted intelligence layer that makes
+                music-rights information easier to process, validate, and review.
+              </p>
+              <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+                This work is proposed R&amp;D and is not represented as a system that
+                determines copyright ownership or replaces professional judgment.
+              </p>
+            </div>
+
+            <ol className="grid gap-4 sm:grid-cols-2">
+              {[
+                ["01", "Intelligent document processing", "Organize relevant fields from agreements and supporting documents, identify missing information, and support document-to-project comparisons."],
+                ["02", "Rights-information validation", "Strengthen ownership-total checks, required-field detection, project-record comparisons, and exceptions for operator review."],
+                ["03", "Explainable decision support", "Connect flagged information to source records, validation rules, model or rules versions, reasons, and suggested next steps."],
+                ["04", "Decision traceability", "Maintain processing timestamps, source references, review status, human overrides, and related evidence in the workflow history."],
+              ].map(([number, title, body], i) => (
+                <motion.li
+                  key={number}
+                  initial={reduce ? false : { opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.06 }}
+                  className="rounded-xl border border-border bg-card p-5"
+                >
+                  <p className="text-xs font-bold tracking-widest text-accent">{number}</p>
+                  <h3 className="mt-2 text-base font-semibold text-foreground">{title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
+                </motion.li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="mt-10 rounded-2xl border border-border bg-muted/40 p-5 sm:p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Proposed traceable workflow
+            </p>
+            <ol className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+              {[
+                ["1", "Information inputs"],
+                ["2", "Extraction"],
+                ["3", "AI analysis"],
+                ["4", "Explainability"],
+                ["5", "Human review"],
+                ["6", "Rights records"],
+              ].map(([number, label], i) => (
+                <li key={number} className="relative rounded-lg border border-border bg-card px-3 py-4 text-sm font-medium text-foreground">
+                  <span className="mr-2 text-accent">{number}</span>
+                  {label}
+                  {i < 5 && <span className="absolute -right-2 top-1/2 hidden -translate-y-1/2 text-muted-foreground lg:block" aria-hidden>→</span>}
+                </li>
+              ))}
+            </ol>
+            <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+              Human oversight remains a core design principle: operators review,
+              accept, reject, or correct results and remain responsible for
+              consequential decisions.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section className="border-b border-border">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
@@ -710,6 +782,74 @@ export default function Landing() {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      <section className="border-b border-border bg-muted/40" aria-labelledby="roadmap-heading">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
+          <div className="grid gap-10 lg:grid-cols-[0.7fr_1.3fr]">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+                Product roadmap
+              </p>
+              <h2 id="roadmap-heading" className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                Built in phases. Governed through evidence.
+              </h2>
+              <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+                SoundLedger is developing SplitSheet through technical validation,
+                customer feedback, available resources, and commercialization milestones.
+              </p>
+            </div>
+            <ol className="grid gap-4 sm:grid-cols-2">
+              {[
+                ["Phase 1", "Workflow infrastructure", "Projects, contributors, splits, agreements, confirmation links, and rights records."],
+                ["Phase 2", "Intelligent information processing", "Document extraction, normalization, advanced validation, and inconsistency detection."],
+                ["Phase 3", "Explainable AI and decision governance", "Decision provenance, rule and model versions, review records, and audit reporting."],
+                ["Phase 4", "Commercial intelligence", "Rights reporting, integrations, enterprise analytics, and expanded reporting services."],
+              ].map(([phase, title, body], i) => (
+                <motion.li
+                  key={phase}
+                  initial={reduce ? false : { opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.06 }}
+                  className="rounded-xl border border-border bg-card p-5"
+                >
+                  <p className="text-xs font-bold uppercase tracking-widest text-accent">{phase}</p>
+                  <h3 className="mt-2 font-semibold text-foreground">{title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
+                </motion.li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-border">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
+          <div className="grid gap-8 md:grid-cols-[0.75fr_1.25fr] md:items-center">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+                Ontario, Canada
+              </p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                Built in London. Designed for a global music industry.
+              </h2>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[
+                ["Commercial pilots", "Validate the product with independent professionals and studios."],
+                ["Privacy and security", "Apply practical controls, responsible data handling, and privacy-first architecture."],
+                ["Customer-led growth", "Optimize workflows and build partnerships around real operating needs."],
+                ["Long-term vision", "Connect rights documentation, evidence, information intelligence, and financial decision support."],
+              ].map(([title, body]) => (
+                <div key={title} className="rounded-xl border border-border bg-card p-5">
+                  <h3 className="font-semibold text-foreground">{title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -970,6 +1110,58 @@ export default function Landing() {
                 Request an Enterprise Demo
               </a>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-border bg-muted/40" aria-labelledby="faq-heading">
+        <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:py-20">
+          <h2 id="faq-heading" className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Frequently asked questions
+          </h2>
+          <div className="mt-8 divide-y divide-border rounded-2xl border border-border bg-card px-5 sm:px-6">
+            {[
+              [
+                "Does SplitSheet determine who legally owns a song?",
+                "No. SplitSheet documents contributor information and ownership allocations supplied by users. It does not independently establish copyright ownership or determine legal rights.",
+              ],
+              [
+                "Do contributors need an account?",
+                "No. Contributors can review and complete the relevant confirmation workflow through an operator-issued link.",
+              ],
+              [
+                "Does SplitSheet provide legal advice?",
+                "No. SplitSheet is software for operational documentation. Users should obtain appropriate legal advice for their agreements and circumstances.",
+              ],
+              [
+                "Does SplitSheet use AI?",
+                "The platform has an existing structured workflow and validation foundation. AI-assisted document processing and explainable decision support are part of the proposed development roadmap, not a representation that every planned feature is currently active.",
+              ],
+              [
+                "Does confirmation guarantee an enforceable agreement?",
+                "No. Confirmation and evidence records support traceability and documentation. Legal enforceability depends on the applicable facts, law, agreement, and circumstances.",
+              ],
+              [
+                "Who owns SplitSheet?",
+                "SplitSheet is developed and commercialized by SoundLedger Technologies Inc., subject to the company's documented intellectual property ownership and applicable third-party rights.",
+              ],
+              [
+                "Who is SplitSheet designed for?",
+                "Songwriters, producers, recording engineers, managers, studios, independent labels, and music-rights administrators.",
+              ],
+            ].map(([question, answer]) => (
+              <details key={question} className="group py-5">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-foreground">
+                  {question}
+                  <span className="shrink-0 text-xl text-accent transition-transform group-open:rotate-45" aria-hidden>
+                    +
+                  </span>
+                </summary>
+                <p className="mt-3 pr-8 text-sm leading-7 text-muted-foreground">
+                  {answer}
+                </p>
+              </details>
+            ))}
           </div>
         </div>
       </section>
