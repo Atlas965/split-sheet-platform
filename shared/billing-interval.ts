@@ -2,6 +2,9 @@ export type BillingInterval = "month" | "year";
 
 export const BILLING_INTERVALS = ["month", "year"] as const;
 
+export const SELLABLE_PLANS = ["session", "creator_pro", "studio_pro"] as const;
+export type SellablePlan = (typeof SELLABLE_PLANS)[number];
+
 export function parseBillingInterval(
   raw: unknown,
 ): { ok: true; interval: BillingInterval } | { ok: false; message: string } {
@@ -33,17 +36,33 @@ export function assertPlanAllowsInterval(
   return { ok: true };
 }
 
+export function normalizeCheckoutPlan(
+  raw: unknown,
+): { ok: true; plan: SellablePlan } | { ok: false; message: string } {
+  const value = String(raw || "creator_pro").toLowerCase().trim();
+  if (value === "session" || value === "single_session" || value === "pay_per_session") {
+    return { ok: true, plan: "session" };
+  }
+  if (value === "creator_pro" || value === "creator") {
+    return { ok: true, plan: "creator_pro" };
+  }
+  if (value === "studio_pro" || value === "label" || value === "pro") {
+    return { ok: true, plan: "studio_pro" };
+  }
+  return {
+    ok: false,
+    message: `Invalid plan: ${value}. Use session, creator_pro, or studio_pro.`,
+  };
+}
+
 export const PLAN_PRICE_CENTS = {
   session: { month: 2500 },
-  pro: { month: 5000, year: 60000 },
   creator_pro: { month: 1500, year: 15000 },
   studio_pro: { month: 4900, year: 49000 },
 } as const;
 
 export function stripePriceEnvKeys(plan: string, interval: BillingInterval): string[] {
   if (plan === "session") return ["STRIPE_SESSION_PRICE_ID"];
-  if (plan === "pro" && interval === "year") return ["STRIPE_MULTI_CREATOR_ANNUAL_PRICE_ID"];
-  if (plan === "pro") return ["STRIPE_MULTI_CREATOR_PRICE_ID"];
   if (plan === "creator_pro" && interval === "year") {
     return ["STRIPE_PRICE_CREATOR_PRO_ANNUAL", "STRIPE_CREATOR_PRO_ANNUAL_PRICE_ID"];
   }
@@ -77,10 +96,8 @@ export function mapStripePriceIdToPlan(
 ): { tier: string; interval: BillingInterval } | null {
   if (!priceId) return null;
   const pairs: Array<{ tier: string; interval: BillingInterval }> = [
-    { tier: "pro", interval: "year" },
     { tier: "creator_pro", interval: "year" },
     { tier: "studio_pro", interval: "year" },
-    { tier: "pro", interval: "month" },
     { tier: "creator_pro", interval: "month" },
     { tier: "studio_pro", interval: "month" },
     { tier: "session", interval: "month" },
@@ -89,11 +106,18 @@ export function mapStripePriceIdToPlan(
     const resolved = resolveStripePriceId(pair.tier, pair.interval, env);
     if (resolved && resolved === priceId) return pair;
   }
+  // Keep existing subscriptions on the retired tier recognizable to webhooks.
+  if (env.STRIPE_MULTI_CREATOR_ANNUAL_PRICE_ID === priceId) {
+    return { tier: "pro", interval: "year" };
+  }
+  if (env.STRIPE_MULTI_CREATOR_PRICE_ID === priceId) {
+    return { tier: "pro", interval: "month" };
+  }
   return null;
 }
 
 export function displayPlanPrice(
-  plan: "free" | "session" | "pro" | "creator_pro" | "studio_pro" | "enterprise",
+  plan: "free" | "session" | "creator_pro" | "studio_pro" | "enterprise",
   interval: BillingInterval,
 ): {
   price: string;
@@ -116,21 +140,6 @@ export function displayPlanPrice(
       monthlyEquivalent: null,
       saveBadge: null,
     };
-  }
-  if (plan === "pro") {
-    return interval === "year"
-      ? {
-          price: "$600 CAD/year",
-          billing: "Billed annually in CAD",
-          monthlyEquivalent: "$50 CAD/mo",
-          saveBadge: null,
-        }
-      : {
-          price: "$50 CAD/mo",
-          billing: "Billed monthly in CAD",
-          monthlyEquivalent: null,
-          saveBadge: null,
-        };
   }
   if (plan === "creator_pro") {
     return interval === "year"

@@ -4,6 +4,7 @@ import {
   defaultSubscriptionInterval,
   displayPlanPrice,
   mapStripePriceIdToPlan,
+  normalizeCheckoutPlan,
   parseBillingInterval,
   PLAN_PRICE_CENTS,
   resolveStripePriceId,
@@ -31,6 +32,13 @@ describe("billing interval parse", () => {
     expect(assertPlanAllowsInterval("free", "year").ok).toBe(false);
     expect(assertPlanAllowsInterval("creator_pro", "year").ok).toBe(true);
   });
+
+  it("normalizes the retired pro checkout key to Studio Pro", () => {
+    expect(normalizeCheckoutPlan("pro")).toEqual({ ok: true, plan: "studio_pro" });
+    expect(normalizeCheckoutPlan("label")).toEqual({ ok: true, plan: "studio_pro" });
+    expect(normalizeCheckoutPlan("studio_pro")).toEqual({ ok: true, plan: "studio_pro" });
+    expect(normalizeCheckoutPlan("unknown").ok).toBe(false);
+  });
 });
 
 describe("pricing page display", () => {
@@ -54,20 +62,10 @@ describe("pricing page display", () => {
     expect(displayPlanPrice("studio_pro", "month").price).toBe("$49 CAD/mo");
   });
 
-  it("shows fixed Multi-Creator monthly and annual pricing", () => {
-    expect(PLAN_PRICE_CENTS.pro).toEqual({ month: 5000, year: 60000 });
-    expect(displayPlanPrice("pro", "month")).toMatchObject({
-      price: "$50 CAD/mo",
-      billing: "Billed monthly in CAD",
-      monthlyEquivalent: null,
-      saveBadge: null,
-    });
-    expect(displayPlanPrice("pro", "year")).toMatchObject({
-      price: "$600 CAD/year",
-      billing: "Billed annually in CAD",
-      monthlyEquivalent: "$50 CAD/mo",
-      saveBadge: null,
-    });
+  it("keeps the active self-serve plans priced correctly", () => {
+    expect(PLAN_PRICE_CENTS.session).toEqual({ month: 2500 });
+    expect(PLAN_PRICE_CENTS.creator_pro).toEqual({ month: 1500, year: 15000 });
+    expect(PLAN_PRICE_CENTS.studio_pro).toEqual({ month: 4900, year: 49000 });
   });
 });
 
@@ -78,29 +76,29 @@ describe("Stripe price ID resolution and webhook mapping", () => {
     STRIPE_PRICE_CREATOR_PRO_ANNUAL: "price_creator_year",
     STRIPE_PRICE_STUDIO_PRO_ANNUAL: "price_studio_year",
     STRIPE_SESSION_PRICE_ID: "price_session",
-    STRIPE_MULTI_CREATOR_PRICE_ID: "price_multi_creator_month",
-    STRIPE_MULTI_CREATOR_ANNUAL_PRICE_ID: "price_multi_creator_year",
+    STRIPE_MULTI_CREATOR_PRICE_ID: "price_legacy_month",
+    STRIPE_MULTI_CREATOR_ANNUAL_PRICE_ID: "price_legacy_year",
     STRIPE_PRO_PRICE_ID: "price_legacy_pro",
   };
 
   it("selects monthly price IDs", () => {
-    expect(resolveStripePriceId("pro", "month", env)).toBe("price_multi_creator_month");
+    expect(resolveStripePriceId("pro", "month", env)).toBeUndefined();
     expect(resolveStripePriceId("creator_pro", "month", env)).toBe("price_creator_month");
     expect(resolveStripePriceId("studio_pro", "month", env)).toBe("price_studio_month");
   });
 
   it("selects annual price IDs", () => {
-    expect(resolveStripePriceId("pro", "year", env)).toBe("price_multi_creator_year");
+    expect(resolveStripePriceId("pro", "year", env)).toBeUndefined();
     expect(resolveStripePriceId("creator_pro", "year", env)).toBe("price_creator_year");
     expect(resolveStripePriceId("studio_pro", "year", env)).toBe("price_studio_year");
   });
 
-  it("maps annual and monthly price IDs back to the same plan tier", () => {
-    expect(mapStripePriceIdToPlan("price_multi_creator_year", env)).toEqual({
+  it("keeps existing legacy Stripe subscriptions recognized without selling them", () => {
+    expect(mapStripePriceIdToPlan("price_legacy_year", env)).toEqual({
       tier: "pro",
       interval: "year",
     });
-    expect(mapStripePriceIdToPlan("price_multi_creator_month", env)).toEqual({
+    expect(mapStripePriceIdToPlan("price_legacy_month", env)).toEqual({
       tier: "pro",
       interval: "month",
     });

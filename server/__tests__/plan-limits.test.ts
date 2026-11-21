@@ -11,6 +11,7 @@ describe("plan-limits", () => {
     expect(normalizePlanTier(undefined)).toBe("free");
     expect(normalizePlanTier("starter")).toBe("free");
     expect(normalizePlanTier("label")).toBe("studio_pro");
+    expect(normalizePlanTier("pro")).toBe("studio_pro");
     expect(normalizePlanTier("Creator_Pro")).toBe("creator_pro");
   });
 
@@ -20,12 +21,14 @@ describe("plan-limits", () => {
     expect(projectLimitForTier("session")).toBe(5);
     expect(projectLimitForTier("creator_pro")).toBeNull();
     expect(projectLimitForTier("studio_pro")).toBeNull();
+    expect(projectLimitForTier("pro")).toBeNull();
   });
 
   it("caps starter and session contributors", () => {
     expect(contributorLimitForTier("free")).toBe(2);
     expect(contributorLimitForTier("session")).toBe(5);
     expect(contributorLimitForTier("studio_pro")).toBeNull();
+    expect(contributorLimitForTier("pro")).toBeNull();
   });
 
   it("allows usage under the cap and rejects at the cap", () => {

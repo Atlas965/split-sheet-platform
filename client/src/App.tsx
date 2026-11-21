@@ -60,7 +60,7 @@ function AuthenticatedRoutes() {
           path="/subscribe"
           component={() => {
             const params = new URLSearchParams(window.location.search);
-            const plan = params.get("plan") ?? "pro";
+            const plan = params.get("plan") ?? "creator_pro";
             const interval = params.get("interval") ?? "month";
             return <Subscribe plan={plan} interval={interval} />;
           }}
